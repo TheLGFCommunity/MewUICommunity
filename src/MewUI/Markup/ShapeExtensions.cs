@@ -1,6 +1,9 @@
 using Aprillz.MewUI.Rendering;
+using Aprillz.MewUI.Shapes;
 
-namespace Aprillz.MewUI.Shapes;
+namespace Aprillz.MewUI;
+
+using Path = Aprillz.MewUI.Shapes.Path;
 
 /// <summary>
 /// Fluent API extension methods for shape elements.

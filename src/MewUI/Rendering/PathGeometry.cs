@@ -352,6 +352,104 @@ public sealed class PathGeometry : IFreezable
         }
     }
 
+    /// <summary>
+    /// Returns a new <see cref="PathGeometry"/> with every sub-path reversed
+    /// (visiting the same points in opposite winding order).
+    /// </summary>
+    public PathGeometry Reverse()
+    {
+        var result = new PathGeometry();
+        result.FillRule = _fillRule;
+
+        var cmds = Commands;
+        int i = 0;
+
+        while (i < cmds.Length)
+        {
+            if (cmds[i].Type != PathCommandType.MoveTo)
+            {
+                i++;
+                continue;
+            }
+
+            double startX = cmds[i].X0, startY = cmds[i].Y0;
+            int segStart = i + 1;
+            i++;
+
+            // Find end of sub-path.
+            bool isClosed = false;
+            while (i < cmds.Length && cmds[i].Type != PathCommandType.MoveTo)
+            {
+                if (cmds[i].Type == PathCommandType.Close)
+                {
+                    isClosed = true;
+                    i++;
+                    break;
+                }
+                i++;
+            }
+
+            int segEnd = isClosed ? i - 1 : i;
+            int segCount = segEnd - segStart;
+
+            if (segCount == 0)
+            {
+                result.MoveTo(startX, startY);
+                if (isClosed) result.Close();
+                continue;
+            }
+
+            // Build "from" point for each segment (endpoint of the previous segment).
+            var fx = new double[segCount + 1];
+            var fy = new double[segCount + 1];
+            fx[0] = startX;
+            fy[0] = startY;
+
+            for (int k = 0; k < segCount; k++)
+            {
+                var cmd = cmds[segStart + k];
+                switch (cmd.Type)
+                {
+                    case PathCommandType.LineTo:
+                        fx[k + 1] = cmd.X0;
+                        fy[k + 1] = cmd.Y0;
+                        break;
+                    case PathCommandType.BezierTo:
+                        fx[k + 1] = cmd.X2;
+                        fy[k + 1] = cmd.Y2;
+                        break;
+                    default:
+                        fx[k + 1] = fx[k];
+                        fy[k + 1] = fy[k];
+                        break;
+                }
+            }
+
+            // Reversed sub-path starts at the last endpoint.
+            result.MoveTo(fx[segCount], fy[segCount]);
+
+            // Emit segments in reverse order, each with swapped direction.
+            for (int k = segCount - 1; k >= 0; k--)
+            {
+                var cmd = cmds[segStart + k];
+                switch (cmd.Type)
+                {
+                    case PathCommandType.LineTo:
+                        result.LineTo(fx[k], fy[k]);
+                        break;
+                    case PathCommandType.BezierTo:
+                        // Swap control points cp1↔cp2, endpoint = from[k].
+                        result.BezierTo(cmd.X1, cmd.Y1, cmd.X0, cmd.Y0, fx[k], fy[k]);
+                        break;
+                }
+            }
+
+            if (isClosed) result.Close();
+        }
+
+        return result;
+    }
+
     // ── Queries ───────────────────────────────────────────────────────────────
 
     /// <summary>
