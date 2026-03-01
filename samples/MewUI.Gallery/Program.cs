@@ -268,7 +268,7 @@ static void Startup()
     {
         try
         {
-            MessageBox.Show(e.Exception.ToString(), "Unhandled UI exception");
+            _ = MessageBox.ShowDialogAsync(e.Exception.ToString(), "Unhandled UI exception");
         }
         catch
         {

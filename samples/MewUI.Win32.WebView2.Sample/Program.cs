@@ -416,7 +416,7 @@ catch (Exception ex)
 {
     try
     {
-        MessageBox.Show(ex.ToString(), "Fatal error", MessageBoxButtons.Ok, MessageBoxIcon.Error);
+        _ = MessageBox.ShowDialogAsync(ex.ToString(), "Fatal error", MessageBoxButtons.Ok, MessageBoxIcon.Error);
     }
     catch
     {
@@ -429,11 +429,11 @@ static void HandleDomainException(UnhandledExceptionEventArgs e)
     {
         if (e.ExceptionObject is Exception ex)
         {
-            MessageBox.Show(ex.ToString(), "Unhandled exception", MessageBoxButtons.Ok, MessageBoxIcon.Error);
+            _ = MessageBox.ShowDialogAsync(ex.ToString(), "Unhandled exception", MessageBoxButtons.Ok, MessageBoxIcon.Error);
         }
         else
         {
-            MessageBox.Show(e.ExceptionObject?.ToString() ?? "Unknown error", "Unhandled exception", MessageBoxButtons.Ok, MessageBoxIcon.Error);
+            _ = MessageBox.ShowDialogAsync(e.ExceptionObject?.ToString() ?? "Unknown error", "Unhandled exception", MessageBoxButtons.Ok, MessageBoxIcon.Error);
         }
     }
     catch
@@ -445,7 +445,7 @@ static void HandleUIException(DispatcherUnhandledExceptionEventArgs e)
 {
     try
     {
-        MessageBox.Show(e.Exception.ToString(), "Unhandled exception", MessageBoxButtons.Ok, MessageBoxIcon.Error);
+        _ = MessageBox.ShowDialogAsync(e.Exception.ToString(), "Unhandled exception", MessageBoxButtons.Ok, MessageBoxIcon.Error);
     }
     catch
     {
