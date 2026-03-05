@@ -1,9 +1,8 @@
 using Aprillz.MewUI.Rendering;
-using Aprillz.MewUI.Shapes;
 
 namespace Aprillz.MewUI;
 
-using Path = Aprillz.MewUI.Shapes.Path;
+using Path = Aprillz.MewUI.PathShape;
 
 /// <summary>
 /// Fluent API extension methods for shape elements.
@@ -22,7 +21,7 @@ public static class ShapeExtensions
     /// <summary>Sets the fill to a solid color.</summary>
     public static T Fill<T>(this T shape, Color color) where T : Shape
     {
-        shape.Fill = new SimpleSolidColorBrush(color);
+        shape.Fill = new SolidColorBrush(color);
         return shape;
     }
 
@@ -37,7 +36,7 @@ public static class ShapeExtensions
     /// <summary>Sets the stroke to a solid color with the given thickness.</summary>
     public static T Stroke<T>(this T shape, Color color, double thickness = 1) where T : Shape
     {
-        shape.Stroke = new SimpleSolidColorBrush(color);
+        shape.Stroke = new SolidColorBrush(color);
         shape.StrokeThickness = thickness;
         return shape;
     }
@@ -61,14 +60,14 @@ public static class ShapeExtensions
     #region Path
 
     /// <summary>Sets the path data geometry.</summary>
-    public static Path Data(this Path path, PathGeometry geometry)
+    public static MewUI.PathShape Data(this MewUI.PathShape path, PathGeometry geometry)
     {
         path.Data = geometry;
         return path;
     }
 
     /// <summary>Sets the path data from an SVG path data string.</summary>
-    public static Path Data(this Path path, string svgPathData)
+    public static MewUI.PathShape Data(this MewUI.PathShape path, string svgPathData)
     {
         path.Data = PathGeometry.Parse(svgPathData);
         return path;

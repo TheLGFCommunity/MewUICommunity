@@ -7,10 +7,10 @@ namespace Aprillz.MewUI.Rendering;
 /// Used as the DIM fallback when a backend does not provide its own brush implementation.
 /// The context's existing <see cref="IGraphicsContext"/> Color-based overloads handle the actual drawing.
 /// </summary>
-internal sealed class SimpleSolidColorBrush : ISolidColorBrush
+internal sealed class SolidColorBrush : ISolidColorBrush
 {
     public Color Color { get; }
-    public SimpleSolidColorBrush(Color color) => Color = color;
+    public SolidColorBrush(Color color) => Color = color;
     public void Dispose() { }
 }
 
@@ -18,7 +18,7 @@ internal sealed class SimpleSolidColorBrush : ISolidColorBrush
 /// Backend-agnostic pen.
 /// Used as the DIM fallback when a backend does not provide its own pen implementation.
 /// </summary>
-internal sealed class SimplePen : IPen
+internal sealed class Pen : IPen
 {
     private readonly bool _ownsBrush;
     private bool _disposed;
@@ -27,15 +27,15 @@ internal sealed class SimplePen : IPen
     public double Thickness { get; }
     public StrokeStyle StrokeStyle { get; }
 
-    public SimplePen(Color color, double thickness, StrokeStyle strokeStyle)
+    public Pen(Color color, double thickness, StrokeStyle strokeStyle)
     {
-        Brush = new SimpleSolidColorBrush(color);
+        Brush = new SolidColorBrush(color);
         Thickness = thickness;
         StrokeStyle = strokeStyle;
         _ownsBrush = true;
     }
 
-    public SimplePen(IBrush brush, double thickness, StrokeStyle strokeStyle)
+    public Pen(IBrush brush, double thickness, StrokeStyle strokeStyle)
     {
         Brush = brush;
         Thickness = thickness;
@@ -57,7 +57,7 @@ internal sealed class SimplePen : IPen
 /// Backend-agnostic linear gradient brush used as a DIM fallback.
 /// Backends that support gradient rendering should override the factory method.
 /// </summary>
-internal sealed class SimpleLinearGradientBrush : ILinearGradientBrush
+internal sealed class LinearGradientBrush : ILinearGradientBrush
 {
     public Point StartPoint { get; }
     public Point EndPoint { get; }
@@ -66,7 +66,7 @@ internal sealed class SimpleLinearGradientBrush : ILinearGradientBrush
     public GradientUnits GradientUnits { get; }
     public Matrix3x2? GradientTransform { get; }
 
-    public SimpleLinearGradientBrush(
+    public LinearGradientBrush(
         Point startPoint, Point endPoint,
         IReadOnlyList<GradientStop> stops,
         SpreadMethod spreadMethod,
@@ -88,7 +88,7 @@ internal sealed class SimpleLinearGradientBrush : ILinearGradientBrush
 /// Backend-agnostic radial gradient brush used as a DIM fallback.
 /// Backends that support gradient rendering should override the factory method.
 /// </summary>
-internal sealed class SimpleRadialGradientBrush : IRadialGradientBrush
+internal sealed class RadialGradientBrush : IRadialGradientBrush
 {
     public Point Center { get; }
     public Point GradientOrigin { get; }
@@ -99,7 +99,7 @@ internal sealed class SimpleRadialGradientBrush : IRadialGradientBrush
     public GradientUnits GradientUnits { get; }
     public Matrix3x2? GradientTransform { get; }
 
-    public SimpleRadialGradientBrush(
+    public RadialGradientBrush(
         Point center, Point gradientOrigin,
         double radiusX, double radiusY,
         IReadOnlyList<GradientStop> stops,

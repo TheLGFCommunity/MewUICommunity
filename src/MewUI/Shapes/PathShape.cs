@@ -1,11 +1,11 @@
 using Aprillz.MewUI.Rendering;
 
-namespace Aprillz.MewUI.Shapes;
+namespace Aprillz.MewUI;
 
 /// <summary>
 /// Renders an arbitrary <see cref="PathGeometry"/>.
 /// </summary>
-public class Path : Shape
+public class PathShape : Shape
 {
     /// <summary>
     /// Gets or sets the geometry that defines this path.

@@ -1,6 +1,6 @@
 using Aprillz.MewUI.Rendering;
 
-namespace Aprillz.MewUI.Shapes;
+namespace Aprillz.MewUI;
 
 /// <summary>
 /// Renders a rectangle, optionally with rounded corners.

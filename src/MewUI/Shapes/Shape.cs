@@ -1,7 +1,7 @@
 using Aprillz.MewUI.Controls;
 using Aprillz.MewUI.Rendering;
 
-namespace Aprillz.MewUI.Shapes;
+namespace Aprillz.MewUI;
 
 /// <summary>
 /// Abstract base class for shape elements that render a <see cref="PathGeometry"/>.

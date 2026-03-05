@@ -1,6 +1,6 @@
 using Aprillz.MewUI.Rendering;
 
-namespace Aprillz.MewUI.Shapes;
+namespace Aprillz.MewUI;
 
 /// <summary>
 /// Renders a straight line between two points.

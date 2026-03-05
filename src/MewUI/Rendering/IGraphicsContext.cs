@@ -283,11 +283,11 @@ namespace Aprillz.MewUI.Rendering
             {
                 // Top
                 FillRectangle(new Rect(sx + cr, sy - br, edgeW, br),
-                    new SimpleLinearGradientBrush(new Point(0, sy - br), new Point(0, sy),
+                    new LinearGradientBrush(new Point(0, sy - br), new Point(0, sy),
                         fadeIn, SpreadMethod.Pad, GradientUnits.UserSpaceOnUse, null));
                 // Bottom
                 FillRectangle(new Rect(sx + cr, sy + sh, edgeW, br),
-                    new SimpleLinearGradientBrush(new Point(0, sy + sh), new Point(0, sy + sh + br),
+                    new LinearGradientBrush(new Point(0, sy + sh), new Point(0, sy + sh + br),
                         fadeOut, SpreadMethod.Pad, GradientUnits.UserSpaceOnUse, null));
             }
 
@@ -295,11 +295,11 @@ namespace Aprillz.MewUI.Rendering
             {
                 // Left
                 FillRectangle(new Rect(sx - br, sy + cr, br, edgeH),
-                    new SimpleLinearGradientBrush(new Point(sx - br, 0), new Point(sx, 0),
+                    new LinearGradientBrush(new Point(sx - br, 0), new Point(sx, 0),
                         fadeIn, SpreadMethod.Pad, GradientUnits.UserSpaceOnUse, null));
                 // Right
                 FillRectangle(new Rect(sx + sw, sy + cr, br, edgeH),
-                    new SimpleLinearGradientBrush(new Point(sx + sw, 0), new Point(sx + sw + br, 0),
+                    new LinearGradientBrush(new Point(sx + sw, 0), new Point(sx + sw + br, 0),
                         fadeOut, SpreadMethod.Pad, GradientUnits.UserSpaceOnUse, null));
             }
 
@@ -309,25 +309,25 @@ namespace Aprillz.MewUI.Rendering
             // Top-left
             var tlCenter = new Point(sx + cr, sy + cr);
             FillRectangle(new Rect(sx - br, sy - br, cornerSize, cornerSize),
-                new SimpleRadialGradientBrush(tlCenter, tlCenter, radius, radius,
+                new RadialGradientBrush(tlCenter, tlCenter, radius, radius,
                     cornerStops, SpreadMethod.Pad, GradientUnits.UserSpaceOnUse, null));
 
             // Top-right
             var trCenter = new Point(sx + sw - cr, sy + cr);
             FillRectangle(new Rect(sx + sw - cr, sy - br, cornerSize, cornerSize),
-                new SimpleRadialGradientBrush(trCenter, trCenter, radius, radius,
+                new RadialGradientBrush(trCenter, trCenter, radius, radius,
                     cornerStops, SpreadMethod.Pad, GradientUnits.UserSpaceOnUse, null));
 
             // Bottom-left
             var blCenter = new Point(sx + cr, sy + sh - cr);
             FillRectangle(new Rect(sx - br, sy + sh - cr, cornerSize, cornerSize),
-                new SimpleRadialGradientBrush(blCenter, blCenter, radius, radius,
+                new RadialGradientBrush(blCenter, blCenter, radius, radius,
                     cornerStops, SpreadMethod.Pad, GradientUnits.UserSpaceOnUse, null));
 
             // Bottom-right
             var brCenter = new Point(sx + sw - cr, sy + sh - cr);
             FillRectangle(new Rect(sx + sw - cr, sy + sh - cr, cornerSize, cornerSize),
-                new SimpleRadialGradientBrush(brCenter, brCenter, radius, radius,
+                new RadialGradientBrush(brCenter, brCenter, radius, radius,
                     cornerStops, SpreadMethod.Pad, GradientUnits.UserSpaceOnUse, null));
         }
 

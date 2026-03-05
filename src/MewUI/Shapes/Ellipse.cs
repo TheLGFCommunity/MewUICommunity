@@ -1,6 +1,6 @@
 using Aprillz.MewUI.Rendering;
 
-namespace Aprillz.MewUI.Shapes;
+namespace Aprillz.MewUI;
 
 /// <summary>
 /// Renders an ellipse that fills the element bounds.

@@ -20,11 +20,11 @@ public interface IGraphicsFactory
 
     /// <summary>Creates a solid-color brush.</summary>
     /// <remarks>
-    /// The default DIM returns a <see cref="SimpleSolidColorBrush"/> with no backend resources.
+    /// The default DIM returns a <see cref="SolidColorBrush"/> with no backend resources.
     /// Backends may override for resource lifetime tracking.
     /// The caller is responsible for disposing the returned brush.
     /// </remarks>
-    ISolidColorBrush CreateSolidColorBrush(Color color) => new SimpleSolidColorBrush(color);
+    ISolidColorBrush CreateSolidColorBrush(Color color) => new SolidColorBrush(color);
 
     /// <summary>Creates a pen that strokes with a solid color.</summary>
     /// <param name="color">Stroke color.</param>
@@ -34,11 +34,11 @@ public interface IGraphicsFactory
     /// (flat caps, miter join, miter limit 10).
     /// </param>
     /// <remarks>
-    /// The default DIM returns a <see cref="SimplePen"/>.
+    /// The default DIM returns a <see cref="Pen"/>.
     /// The caller is responsible for disposing the returned pen.
     /// </remarks>
     IPen CreatePen(Color color, double thickness = 1.0, StrokeStyle? strokeStyle = null) =>
-        new SimplePen(color, thickness, strokeStyle ?? StrokeStyle.Default);
+        new Pen(color, thickness, strokeStyle ?? StrokeStyle.Default);
 
     /// <summary>Creates a pen using an existing brush.</summary>
     /// <param name="brush">The brush to use for the stroke.  The pen does not take ownership.</param>
@@ -46,7 +46,7 @@ public interface IGraphicsFactory
     /// <param name="strokeStyle">Stroke attributes, or <see langword="null"/> for the default.</param>
     /// <remarks>The caller is responsible for disposing the returned pen (and the brush separately).</remarks>
     IPen CreatePen(IBrush brush, double thickness = 1.0, StrokeStyle? strokeStyle = null) =>
-        new SimplePen(brush, thickness, strokeStyle ?? StrokeStyle.Default);
+        new Pen(brush, thickness, strokeStyle ?? StrokeStyle.Default);
 
     // ── Gradient Brushes ──────────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ public interface IGraphicsFactory
     /// <param name="units">Coordinate space for <paramref name="startPoint"/> and <paramref name="endPoint"/>.</param>
     /// <param name="gradientTransform">Optional additional transform applied to the gradient geometry.</param>
     /// <remarks>
-    /// The default DIM returns a <see cref="SimpleLinearGradientBrush"/>.
+    /// The default DIM returns a <see cref="LinearGradientBrush"/>.
     /// Backends that support GPU gradient rendering should override this method.
     /// The caller is responsible for disposing the returned brush.
     /// </remarks>
@@ -71,7 +71,7 @@ public interface IGraphicsFactory
         SpreadMethod spreadMethod = SpreadMethod.Pad,
         GradientUnits units = GradientUnits.UserSpaceOnUse,
         Matrix3x2? gradientTransform = null)
-        => new SimpleLinearGradientBrush(startPoint, endPoint, stops, spreadMethod, units, gradientTransform);
+        => new LinearGradientBrush(startPoint, endPoint, stops, spreadMethod, units, gradientTransform);
 
     /// <summary>
     /// Creates a radial gradient brush.
@@ -85,7 +85,7 @@ public interface IGraphicsFactory
     /// <param name="units">Coordinate space for geometry parameters.</param>
     /// <param name="gradientTransform">Optional additional transform applied to the gradient geometry.</param>
     /// <remarks>
-    /// The default DIM returns a <see cref="SimpleRadialGradientBrush"/>.
+    /// The default DIM returns a <see cref="RadialGradientBrush"/>.
     /// The caller is responsible for disposing the returned brush.
     /// </remarks>
     IRadialGradientBrush CreateRadialGradientBrush(
@@ -97,7 +97,7 @@ public interface IGraphicsFactory
         SpreadMethod spreadMethod = SpreadMethod.Pad,
         GradientUnits units = GradientUnits.UserSpaceOnUse,
         Matrix3x2? gradientTransform = null)
-        => new SimpleRadialGradientBrush(center, gradientOrigin, radiusX, radiusY, stops, spreadMethod, units, gradientTransform);
+        => new RadialGradientBrush(center, gradientOrigin, radiusX, radiusY, stops, spreadMethod, units, gradientTransform);
 
     // ── Font ──────────────────────────────────────────────────────────────────
 
