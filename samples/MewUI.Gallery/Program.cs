@@ -10,63 +10,73 @@ using Aprillz.MewUI.Gallery;
 
 var stopwatch = Stopwatch.StartNew();
 Startup();
+IconSource icon;
+using (var rs = typeof(Program).Assembly.GetManifestResourceStream("Aprillz.MewUI.Gallery.appicon.ico")!)
+{
+    icon = IconSource.FromStream(rs);
+}
 
 Window window = null!;
 Label backendText = null!;
 Label themeText = null!;
 var fpsText = new ObservableValue<string>("FPS: -");
+var cullText = new ObservableValue<string>("Cull: -");
 var fpsStopwatch = new Stopwatch();
 var fpsFrames = 0;
 var maxFpsEnabled = new ObservableValue<bool>(false);
 
 var currentAccent = ThemeManager.DefaultAccent;
 
-var app = Application
-    .Create()
-    //.UseMetrics(ThemeMetrics.Default with { ControlCornerRadius = 10, ControlBorderThickness = 2 })
-    .UseAccent(Accent.Purple);
-
-var logo = ImageSource.FromFile("logo_h-1280.png");
+var logo = ImageSource.FromFile(GalleryView.CombineBaseDirectory("Resources", "logo_h-1280.png"));
 
 var timer = new DispatcherTimer().Interval(TimeSpan.FromSeconds(1)).OnTick(() => CheckFPS(ref fpsFrames));
-
-var root = new Window()
-    .Resizable(1336, 720)
-    .OnBuild(x => x
-        .Ref(out window)
-        .Title("Aprillz.MewUI Controls Gallery")
-        .Padding(16)
-        .Content(
-            new DockPanel()
-                .Children(
-                    TopBar()
+Application
+    .Create()
+    //.UseMetrics(ThemeMetrics.Default with { ControlCornerRadius = 10, ControlBorderThickness = 2 })
+    .UseAccent(Accent.Purple)
+    .BuildMainWindow(() =>
+    new Window()
+        .Resizable(1356, 720)
+        .OnBuild(x => x
+            .Ref(out window)
+            .Icon(icon)
+            .Title("Aprillz.MewUI Controls Gallery")
+            .Content(
+                new DockPanel()
+                    .Margin(8)
+                    .Children(
+                        TopBar()
                         .DockTop(),
 
                     new GalleryView(window)
                 )
         )
-        .OnLoaded(() => { UpdateTopBar(); timer.Start(); })
-        .OnClosed(() => maxFpsEnabled.Value = false)
-        .OnFrameRendered(() =>
-        {
-            if (!fpsStopwatch.IsRunning)
+            .OnLoaded(() =>
             {
-                fpsStopwatch.Restart();
-                fpsFrames = 0;
-                return;
-            }
+                window.Icon = icon;
+                UpdateTopBar(); timer.Start();
+            })
+            .OnClosed(() => maxFpsEnabled.Value = false)
+            .OnFirstFrameRendered(() => stopwatch.Stop())
+            .OnFrameRendered(() =>
+            {
+                if (!fpsStopwatch.IsRunning)
+                {
+                    fpsStopwatch.Restart();
+                    fpsFrames = 0;
+                    return;
+                }
 
             fpsFrames++;
             CheckFPS(ref fpsFrames);
-        })
-    );
 
-using (var rs = typeof(Program).Assembly.GetManifestResourceStream("Aprillz.MewUI.Gallery.appicon.ico")!)
-{
-    root.Icon = IconSource.FromStream(rs);
-}
+                var stats = window.LastFrameStats;
+                cullText.Value = $"Draw: {stats.DrawCalls} | Cull: {stats.CullCount} ({stats.CullRatio:P0})";
+            })
+        )
+    )
+    .Run();
 
-app.Run(root);
 
 void CheckFPS(ref int fpsFrames)
 {
@@ -142,6 +152,10 @@ FrameworkElement TopBar() => new Border()
 
                                 new Label()
                                     .BindText(fpsText)
+                                    .CenterVertical(),
+
+                                new Label()
+                                    .BindText(cullText)
                                     .CenterVertical()
                             )
                     )
@@ -203,8 +217,8 @@ void EnsureMaxFpsLoop()
 
     var scheduler = Application.Current.RenderLoopSettings;
     scheduler.TargetFps = 0;
-    scheduler.SetContinuous(maxFpsEnabled.Value);
     scheduler.VSyncEnabled = !maxFpsEnabled.Value;
+    scheduler.SetContinuous(maxFpsEnabled.Value);
 }
 
 static void Startup()
@@ -230,7 +244,7 @@ static void Startup()
 #pragma warning restore CA1416
 #elif MEWUI_GALLERY_OSX
     MacOSPlatform.Register();
-    MewVGMetalMacOSBackend.Register();
+    MewVGMacOSBackend.Register();
 #elif MEWUI_GALLERY_LINUX
     X11Platform.Register();
     MewVGX11Backend.Register();

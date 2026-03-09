@@ -5,19 +5,10 @@ namespace Aprillz.MewUI.Gallery;
 
 partial class GalleryView
 {
-    private FrameworkElement WindowsMenuPage() => new WrapPanel()
-        .Spacing(12)
-        .Children(
-            MenusCard(),
-            WindowsCards(),
-            DevToolsCard()
-        );
-
-    private FrameworkElement WindowsCards()
+    private FrameworkElement WindowsMenuPage()
     {
         var dialogStatus = new ObservableValue<string>("Dialog: -");
         var transparentStatus = new ObservableValue<string>("Transparent: -");
-        var openFileStatus = new ObservableValue<string>("Open File: -");
         var openFilesStatus = new ObservableValue<string>("Open Files: -");
         var saveFileStatus = new ObservableValue<string>("Save File: -");
         var folderStatus = new ObservableValue<string>("Select Folder: -");
@@ -130,6 +121,8 @@ partial class GalleryView
         }
 
         return CardGrid(
+            MenusCard(),
+                        
             Card(
                 "ShowDialogAsync",
                 new StackPanel()
@@ -169,17 +162,6 @@ partial class GalleryView
                         new WrapPanel()
                             .Spacing(6)
                             .Children(
-                                new Button()
-                                    .Content("Open File...")
-                                    .OnClick(() =>
-                                    {
-                                        var file = FileDialog.OpenFile(new OpenFileDialogOptions
-                                        {
-                                            Owner = window.Handle,
-                                            Filter = "All Files (*.*)|*.*"
-                                        });
-                                        openFileStatus.Value = file is null ? "Open File: canceled" : $"Open File: {file}";
-                                    }),
                                 new Button()
                                     .Content("Open Files...")
                                     .OnClick(() =>
@@ -226,26 +208,166 @@ partial class GalleryView
                                         folderStatus.Value = folder is null ? "Select Folder: canceled" : $"Select Folder: {folder}";
                                     })
                             ),
-                        new Label()
-                            .BindText(openFileStatus)
-                            .FontSize(11)
-                            .TextWrapping(TextWrapping.Wrap),
+
                         new Label()
                             .BindText(openFilesStatus)
                             .FontSize(11)
                             .TextWrapping(TextWrapping.Wrap),
+
                         new Label()
                             .BindText(saveFileStatus)
                             .FontSize(11)
                             .TextWrapping(TextWrapping.Wrap),
+
                         new Label()
                             .BindText(folderStatus)
                             .FontSize(11)
                             .TextWrapping(TextWrapping.Wrap)
-                    ),
-                minWidth: 520
-            )
+                    )
+            ),
+
+            DevToolsCard()
         );
+    }
+
+
+    private FrameworkElement MenusCard()
+    {
+        var fileMenu = new Menu()
+            .Item("New", shortcutText: "Ctrl+N")
+            .Item("Open...", shortcutText: "Ctrl+O")
+            .Item("Save", shortcutText: "Ctrl+S")
+            .Item("Save As...")
+            .Separator()
+            .SubMenu("Export", new Menu()
+                .Item("PNG")
+                .Item("JPEG")
+                .SubMenu("Advanced", new Menu()
+                    .Item("With metadata")
+                    .Item("Optimized")
+                )
+            )
+            .Separator()
+            .Item("Exit");
+
+        var editMenu = new Menu()
+            .Item("Undo", shortcutText: "Ctrl+Z")
+            .Item("Redo", shortcutText: "Ctrl+Y")
+            .Separator()
+            .Item("Cut", shortcutText: "Ctrl+X")
+            .Item("Copy", shortcutText: "Ctrl+C")
+            .Item("Paste", shortcutText: "Ctrl+V")
+            .Separator()
+            .SubMenu("Find", new Menu()
+                .Item("Find...", shortcutText: "Ctrl+F")
+                .Item("Find Next", shortcutText: "F3")
+                .Item("Replace...", shortcutText: "Ctrl+H")
+            );
+
+        var viewMenu = new Menu()
+            .Item("Toggle Sidebar")
+            .SubMenu("Zoom", new Menu()
+                .Item("Zoom In", shortcutText: "Ctrl++")
+                .Item("Zoom Out", shortcutText: "Ctrl+-")
+                .Item("Reset", shortcutText: "Ctrl+0")
+            );
+
+        return Card(
+                "MenuBar (Multi-depth)",
+                new StackPanel()
+                    .Width(290)
+                    .Vertical()
+                    .Spacing(8)
+                    .Children(
+                        new MenuBar()
+                            .Height(28)
+                            .Items(
+                                new MenuItem("File").Menu(fileMenu),
+                                new MenuItem("Edit").Menu(editMenu),
+                                new MenuItem("View").Menu(viewMenu)
+                            ),
+                        new Label()
+                            .FontSize(11)
+                            .Text("Hover to switch menus while a popup is open. Submenus supported.")
+                    )
+            );
+    }
+
+    private FrameworkElement DevToolsCard()
+    {
+        var shortcuts = new Label()
+            .FontSize(11)
+            .Text("Shortcuts:\n- Inspector: Ctrl/Cmd+Shift+I\n- Visual Tree: Ctrl/Cmd+Shift+T");
+
+        FrameworkElement content;
+#if DEBUG
+        bool updating = false;
+        var inspectorToggle = new ToggleButton()
+            .Content("Inspector Overlay");
+        var treeToggle = new ToggleButton()
+            .Content("Visual Tree Window");
+
+        void UpdateToggles()
+        {
+            updating = true;
+            try
+            {
+                inspectorToggle.IsChecked = window.DevToolsInspectorIsOpen;
+                treeToggle.IsChecked = window.DevToolsVisualTreeIsOpen;
+            }
+            finally
+            {
+                updating = false;
+            }
+        }
+
+        inspectorToggle.CheckedChanged += _ =>
+        {
+            if (updating)
+            {
+                return;
+            }
+
+            window.DevToolsToggleInspector();
+            UpdateToggles();
+        };
+
+        treeToggle.CheckedChanged += _ =>
+        {
+            if (updating)
+            {
+                return;
+            }
+
+            window.DevToolsToggleVisualTree();
+            UpdateToggles();
+        };
+
+        window.DevToolsInspectorOpenChanged += _ => UpdateToggles();
+        window.DevToolsVisualTreeOpenChanged += _ => UpdateToggles();
+        UpdateToggles();
+
+        content = new StackPanel()
+            .Vertical()
+            .Spacing(8)
+            .Children(
+                inspectorToggle,
+                treeToggle,
+                shortcuts
+            );
+#else
+    content = new StackPanel()
+        .Vertical()
+        .Spacing(8)
+        .Children(
+            new Label()
+                .FontSize(11)
+                .Text("DevTools are available in Debug builds only."),
+            shortcuts
+        );
+#endif
+
+        return Card("DevTools", content);
     }
 
     private void EnableWindowDrag(Window window, UIElement element)
@@ -331,146 +453,5 @@ partial class GalleryView
             }
             return screen;
         }
-    }
-
-    private FrameworkElement MenusCard()
-    {
-        var fileMenu = new Menu()
-            .Item("New", shortcutText: "Ctrl+N")
-            .Item("Open...", shortcutText: "Ctrl+O")
-            .Item("Save", shortcutText: "Ctrl+S")
-            .Item("Save As...")
-            .Separator()
-            .SubMenu("Export", new Menu()
-                .Item("PNG")
-                .Item("JPEG")
-                .SubMenu("Advanced", new Menu()
-                    .Item("With metadata")
-                    .Item("Optimized")
-                )
-            )
-            .Separator()
-            .Item("Exit");
-
-        var editMenu = new Menu()
-            .Item("Undo", shortcutText: "Ctrl+Z")
-            .Item("Redo", shortcutText: "Ctrl+Y")
-            .Separator()
-            .Item("Cut", shortcutText: "Ctrl+X")
-            .Item("Copy", shortcutText: "Ctrl+C")
-            .Item("Paste", shortcutText: "Ctrl+V")
-            .Separator()
-            .SubMenu("Find", new Menu()
-                .Item("Find...", shortcutText: "Ctrl+F")
-                .Item("Find Next", shortcutText: "F3")
-                .Item("Replace...", shortcutText: "Ctrl+H")
-            );
-
-        var viewMenu = new Menu()
-            .Item("Toggle Sidebar")
-            .SubMenu("Zoom", new Menu()
-                .Item("Zoom In", shortcutText: "Ctrl++")
-                .Item("Zoom Out", shortcutText: "Ctrl+-")
-                .Item("Reset", shortcutText: "Ctrl+0")
-            );
-
-        return CardGrid(
-            Card(
-                "MenuBar (Multi-depth)",
-                new StackPanel()
-                    .Vertical()
-                    .Spacing(8)
-                    .Children(
-                        new MenuBar()
-                            .Height(28)
-                            .Items(
-                                new MenuItem("File").Menu(fileMenu),
-                                new MenuItem("Edit").Menu(editMenu),
-                                new MenuItem("View").Menu(viewMenu)
-                            ),
-                        new Label()
-                            .FontSize(11)
-                            .Text("Hover to switch menus while a popup is open. Submenus supported.")
-                    ),
-                minWidth: 520
-            )
-        );
-    }
-
-    private FrameworkElement DevToolsCard()
-    {
-        var shortcuts = new Label()
-            .FontSize(11)
-            .Text("Shortcuts:\n- Inspector: Ctrl/Cmd+Shift+I\n- Visual Tree: Ctrl/Cmd+Shift+T");
-
-        FrameworkElement content;
-#if DEBUG
-        bool updating = false;
-        var inspectorToggle = new ToggleButton()
-            .Content("Inspector Overlay");
-        var treeToggle = new ToggleButton()
-            .Content("Visual Tree Window");
-
-        void UpdateToggles()
-        {
-            updating = true;
-            try
-            {
-                inspectorToggle.IsChecked = window.DevToolsInspectorIsOpen;
-                treeToggle.IsChecked = window.DevToolsVisualTreeIsOpen;
-            }
-            finally
-            {
-                updating = false;
-            }
-        }
-
-        inspectorToggle.CheckedChanged += _ =>
-        {
-            if (updating)
-            {
-                return;
-            }
-
-            window.DevToolsToggleInspector();
-            UpdateToggles();
-        };
-
-        treeToggle.CheckedChanged += _ =>
-        {
-            if (updating)
-            {
-                return;
-            }
-
-            window.DevToolsToggleVisualTree();
-            UpdateToggles();
-        };
-
-        window.DevToolsInspectorOpenChanged += _ => UpdateToggles();
-        window.DevToolsVisualTreeOpenChanged += _ => UpdateToggles();
-        UpdateToggles();
-
-        content = new StackPanel()
-            .Vertical()
-            .Spacing(8)
-            .Children(
-                inspectorToggle,
-                treeToggle,
-                shortcuts
-            );
-#else
-    content = new StackPanel()
-        .Vertical()
-        .Spacing(8)
-        .Children(
-            new Label()
-                .FontSize(11)
-                .Text("DevTools are available in Debug builds only."),
-            shortcuts
-        );
-#endif
-
-        return Card("DevTools", content);
     }
 }

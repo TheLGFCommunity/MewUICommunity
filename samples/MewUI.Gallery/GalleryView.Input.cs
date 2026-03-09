@@ -82,6 +82,8 @@ partial class GalleryView
                         .Children(
                             new Label()
                                 .Text("Hover to show a tooltip. Right-click to open a context menu.")
+                                .TextWrapping(TextWrapping.Wrap)
+                                .Width(290)
                                 .FontSize(11),
 
                             new Button()

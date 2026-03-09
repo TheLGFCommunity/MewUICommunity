@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -11,13 +11,9 @@
 
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks> 
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <ItemGroup>
-    <None Remove="Resources\folder-horizontal-open.png" />
-    <None Remove="Resources\folder-horizontal.png" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MewUI\MewUI.csproj" />
@@ -27,19 +23,19 @@
     <DefineConstants>$(DefineConstants);MEWUI_GALLERY_ALL</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('win'))">
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64' Or '$(RuntimeIdentifier)' == 'win-arm64'">
     <DefineConstants>$(DefineConstants);MEWUI_GALLERY_WIN</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('linux'))">
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64' Or '$(RuntimeIdentifier)' == 'linux-arm64'">
     <DefineConstants>$(DefineConstants);MEWUI_GALLERY_LINUX</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('osx'))">
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64'">
     <DefineConstants>$(DefineConstants);MEWUI_GALLERY_OSX</DefineConstants>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == ''">
+  <ItemGroup>
     <ProjectReference Include="..\..\src\MewUI.Platform.Win32\MewUI.Platform.Win32.csproj" />
     <ProjectReference Include="..\..\src\MewUI.Platform.X11\MewUI.Platform.X11.csproj" />
     <ProjectReference Include="..\..\src\MewUI.Platform.MacOS\MewUI.Platform.MacOS.csproj" />
@@ -50,34 +46,16 @@
     <ProjectReference Include="..\..\src\MewUI.Backend.MewVG.MacOS\MewUI.Backend.MewVG.MacOS.csproj" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(Configuration)' == 'RELEASE' And $(RuntimeIdentifier.StartsWith('win'))">
-    <ProjectReference Include="..\..\src\MewUI.Platform.Win32\MewUI.Platform.Win32.csproj" />
-    <ProjectReference Include="..\..\src\MewUI.Backend.Direct2D\MewUI.Backend.Direct2D.csproj" />
-    <ProjectReference Include="..\..\src\MewUI.Backend.Gdi\MewUI.Backend.Gdi.csproj" />
-    <ProjectReference Include="..\..\src\MewUI.Backend.MewVG.Win32\MewUI.Backend.MewVG.Win32.csproj" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(Configuration)' == 'RELEASE' And $(RuntimeIdentifier.StartsWith('linux'))">
-    <ProjectReference Include="..\..\src\MewUI.Platform.X11\MewUI.Platform.X11.csproj" />
-    <ProjectReference Include="..\..\src\MewUI.Backend.MewVG.X11\MewUI.Backend.MewVG.X11.csproj" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(Configuration)' == 'RELEASE' And $(RuntimeIdentifier.StartsWith('osx'))">
-    <ProjectReference Include="..\..\src\MewUI.Platform.MacOS\MewUI.Platform.MacOS.csproj" />
-    <ProjectReference Include="..\..\src\MewUI.Backend.MewVG.MacOS\MewUI.Backend.MewVG.MacOS.csproj" />
-  </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\assets\logo\logo_h-1280.png" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\..\assets\images\april.jpg" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\assets\logo\logo_h-1280.png" CopyToOutputDirectory="PreserveNewest" TargetPath="Resources\logo_h-1280.png" />
+    <None Include="..\..\assets\images\april.jpg" CopyToOutputDirectory="PreserveNewest" TargetPath="Resources\april.jpg" />
+
+    <None Include="Resources\*.*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="..\..\assets\icon\appicon.ico"  />
-    <EmbeddedResource Include="Resources\document.png" />
-    <EmbeddedResource Include="Resources\folder-horizontal-open.png" />
-    <EmbeddedResource Include="Resources\folder-horizontal.png" />
-    <EmbeddedResource Include="Resources\Icons.Custom.xaml" />
   </ItemGroup>
 
 </Project>

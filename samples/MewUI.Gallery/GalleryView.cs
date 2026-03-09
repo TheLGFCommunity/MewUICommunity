@@ -2,19 +2,25 @@ using Aprillz.MewUI.Controls;
 
 namespace Aprillz.MewUI.Gallery;
 
-partial class GalleryView : ContentControl
+partial class GalleryView : UserControl
 {
     private Window window;
+
+    protected override Element? OnBuild() =>
+        new ScrollViewer()
+            .VerticalScroll(ScrollMode.Auto)
+            .Padding(8)
+            .Content(BuildGalleryContent());
 
     public GalleryView(Window window)
     {
         this.window = window;
-        
-        this.Content(new ScrollViewer()
-            .VerticalScroll(ScrollMode.Auto)
-            .Padding(8)
-            .Content(BuildGalleryContent()));
+
+        Build();
     }
+
+    public static string CombineBaseDirectory(params string[] path)
+        => Path.Combine([AppContext.BaseDirectory, .. path]);
 
     private FrameworkElement Card(string title, FrameworkElement content, double minWidth = 320) => new Border()
             .MinWidth(minWidth)
@@ -57,14 +63,18 @@ partial class GalleryView : ContentControl
             .Children(
                 Section("Buttons", ButtonsPage()),
                 Section("Inputs", InputsPage()),
-                Section("Window/Menu", WindowsMenuPage()),
                 Section("Selection", SelectionPage()),
+                Section("Window/Menu", WindowsMenuPage()),
                 Section("Lists", ListsPage()),
                 Section("GridView", GridViewPage()),
                 Section("Panels", PanelsPage()),
                 Section("Layout", LayoutPage()),
+                Section("Typography", TypographyPage()),
                 Section("Media", MediaPage()),
-                Section("Shapes", ShapesPage())
+                Section("Shapes", ShapesPage()),
+                Section("Icons", IconsPage()),
+                Section("Transitions", TransitionsPage()),
+                Section("Toast", ToastPage())
             );
     }
 }

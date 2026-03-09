@@ -4,8 +4,11 @@ namespace Aprillz.MewUI.Gallery;
 
 partial class GalleryView
 {
-    private FrameworkElement SelectionPage() =>
-        CardGrid(
+    private FrameworkElement SelectionPage()
+    {
+        var items = Enumerable.Range(1, 20).Select(i => $"Item {i}").Append("Item Long Long Long Long Long Long Long").ToArray();
+
+        return CardGrid(
             Card(
                 "CheckBox",
                 new Grid()
@@ -37,6 +40,29 @@ partial class GalleryView
             ),
 
             Card(
+                "ComboBox",
+                new StackPanel()
+                    .Vertical()
+                    .Width(200)
+                    .Spacing(8)
+                    .Children(
+                        new ComboBox()
+                            .Items(["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta", "Iota", "Kappa"])
+                            .SelectedIndex(1),
+
+                        new ComboBox()
+                            .Placeholder("Select an item...")
+                            .Items(items),
+
+                        new ComboBox()
+                            .Items(items)
+                            .SelectedIndex(1)
+                            .Disable()
+                    ),
+                minWidth: 250
+            ),
+
+            Card(
                 "TabControl",
                 new UniformGrid()
                     .Columns(2)
@@ -61,4 +87,5 @@ partial class GalleryView
                     )
             )
         );
+    }
 }

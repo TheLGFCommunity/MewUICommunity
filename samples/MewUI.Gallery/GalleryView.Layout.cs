@@ -44,7 +44,6 @@ partial class GalleryView
                         new StackPanel()
                             .Vertical()
                             .Spacing(6)
-                            .Padding(12)
                             .Children(
                                 new Label().Text("GroupBox content"),
                                 new Button().Content("Action")
@@ -76,7 +75,8 @@ partial class GalleryView
                         LabelBox("Right/Top + Wrap", TextAlignment.Right, TextAlignment.Top, TextWrapping.Wrap),
                         LabelBox("Left/Center + Wrap", TextAlignment.Left, TextAlignment.Center, TextWrapping.Wrap),
                         LabelBox("Left/Bottom + Wrap", TextAlignment.Left, TextAlignment.Bottom, TextWrapping.Wrap),
-                        LabelBox("Left/Top + NoWrap", TextAlignment.Left, TextAlignment.Top, TextWrapping.NoWrap)
+                        LabelBox("Left/Top + NoWrap", TextAlignment.Left, TextAlignment.Top, TextWrapping.NoWrap),
+                        LabelBox("Right/Top + NoWrap", TextAlignment.Right, TextAlignment.Top, TextWrapping.NoWrap)
                     )
             ),
 
@@ -137,8 +137,67 @@ partial class GalleryView
                                 new Label()
                                     .TextWrapping(TextWrapping.Wrap)
                                     .Text("Wrapped label followed by a button. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog."),
-                                new Button()
-                                    .Content("After Wrap")
+                                new Border()
+                                    .WithTheme((t, b) => b.Background(t.Palette.ContainerBackground).BorderBrush(t.Palette.ControlBorder))
+                                    .Child(
+                                        new Label()
+                                            .Center()
+                                            .Text("After Wrap"))
+                            )
+                    )
+            ),
+
+            Card(
+                "TextTrimming",
+                new StackPanel()
+                    .Vertical()
+                    .Spacing(8)
+                    .Children(
+                        new Border()
+                            .Width(200)
+                            .Padding(6)
+                            .BorderThickness(1)
+                            .CornerRadius(6)
+                            .WithTheme((t, b) => b.Background(t.Palette.ContainerBackground).BorderBrush(t.Palette.ControlBorder))
+                            .Child(
+                                new Label()
+                                    .Text("No trimming: The quick brown fox jumps over the lazy dog")
+                            ),
+                        new Border()
+                            .Width(200)
+                            .Padding(6)
+                            .BorderThickness(1)
+                            .CornerRadius(6)
+                            .WithTheme((t, b) => b.Background(t.Palette.ContainerBackground).BorderBrush(t.Palette.ControlBorder))
+                            .Child(
+                                new Label()
+                                    .Text("CharacterEllipsis: The quick brown fox jumps over the lazy dog")
+                                    .TextTrimming(TextTrimming.CharacterEllipsis)
+                            ),
+                        new Border()
+                            .Width(200)
+                            .Padding(6)
+                            .BorderThickness(1)
+                            .CornerRadius(6)
+                            .WithTheme((t, b) => b.Background(t.Palette.ContainerBackground).BorderBrush(t.Palette.ControlBorder))
+                            .Child(
+                                new Label()
+                                    .Text("Ellipsis + Center: The quick brown fox jumps over the lazy dog")
+                                    .TextTrimming(TextTrimming.CharacterEllipsis)
+                                    .TextAlignment(TextAlignment.Center)
+                            ),
+                        new Border()
+                            .Width(200)
+                            .Height(50)
+                            .Padding(6)
+                            .BorderThickness(1)
+                            .CornerRadius(6)
+                            .WithTheme((t, b) => b.Background(t.Palette.ContainerBackground).BorderBrush(t.Palette.ControlBorder))
+                            .Child(
+                                new Label()
+                                    .Text("Wrap + Ellipsis: The quick brown fox jumps over the lazy dog. The quick brown fox jumps.")
+                                    .TextWrapping(TextWrapping.Wrap)
+                                    .TextTrimming(TextTrimming.CharacterEllipsis)
                             )
                     )
             ),

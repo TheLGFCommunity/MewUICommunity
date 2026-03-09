@@ -6,9 +6,9 @@ namespace Aprillz.MewUI.Gallery;
 
 partial class GalleryView
 {
-    private ImageSource iconFolderOpen = ImageSource.FromResource<Program>("Aprillz.MewUI.Gallery.Resources.folder-horizontal-open.png");
-    private ImageSource iconFolderClose = ImageSource.FromResource<Program>("Aprillz.MewUI.Gallery.Resources.folder-horizontal.png");
-    private ImageSource iconFile = ImageSource.FromResource<Program>("Aprillz.MewUI.Gallery.Resources.document.png");
+    private ImageSource iconFolderOpen = ImageSource.FromFile(CombineBaseDirectory("Resources/folder-horizontal-open.png"));
+    private ImageSource iconFolderClose = ImageSource.FromFile(CombineBaseDirectory("Resources/folder-horizontal.png"));
+    private ImageSource iconFile = ImageSource.FromFile(CombineBaseDirectory("Resources/document.png"));
 
     private FrameworkElement ListsPage()
     {
@@ -50,28 +50,6 @@ partial class GalleryView
             Card(
                 "ListBox (ItemsView + ItemTemplate)",
                 ListBoxItemsViewTemplateCard()
-            ),
-
-            Card(
-                "ComboBox",
-                new StackPanel()
-                    .Vertical()
-                    .Width(200)
-                    .Spacing(8)
-                    .Children(
-                        new ComboBox()
-                            .Items(["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta", "Iota", "Kappa"])
-                            .SelectedIndex(1),
-
-                        new ComboBox()
-                            .Placeholder("Select an item...")
-                            .Items(items),
-
-                        new ComboBox()
-                            .Items(items)
-                            .SelectedIndex(1)
-                            .Disable()
-                    )
             ),
 
             Card(
@@ -139,7 +117,6 @@ partial class GalleryView
                 });
 
             var panel = new DockPanel()
-                .Height(240)
                 .Spacing(6)
                 .Children(
                     new StackPanel()
