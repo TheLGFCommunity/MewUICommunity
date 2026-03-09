@@ -1,3 +1,5 @@
+using Aprillz.MewUI.Controls;
+
 namespace Aprillz.MewUI.HotReload;
 
 /// <summary>
@@ -61,16 +63,28 @@ public static class MewUiHotReload
     private static void ReloadWindowIfEnabled(Window window, HashSet<Type> types)
     {
         var build = window.BuildCallback;
-        if (build == null)
+        if (build != null && types.Contains(window.GetType()))
         {
-            return;
-        }
-        if (!types.Contains(window.GetType()))
-        {
+            build(window);
+
             return;
         }
 
-        build(window);
+        Element? content = null;
+        var host = VisualTree.Find(window, x =>
+        {
+            if (x is UserControl uc)
+            {
+                content = uc.GetBuiltContent();
+            }
+
+            return content == null;
+        });
+
+        if (host is UserControl control && content is not null)
+        {
+            control.Content = content;
+        }
     }
 }
 
