@@ -25,6 +25,9 @@ internal static partial class FreeType
     public static partial int FT_Load_Char(nint face, uint char_code, int load_flags);
 
     [LibraryImport(LibraryName)]
+    public static partial int FT_Load_Glyph(nint face, uint glyph_index, int load_flags);
+
+    [LibraryImport(LibraryName)]
     public static partial uint FT_Get_Char_Index(nint face, uint charcode);
 
     [LibraryImport(LibraryName)]
@@ -41,6 +44,16 @@ internal static partial class FreeType
 
     [LibraryImport(LibraryName)]
     public static partial int FT_Glyph_To_Bitmap(ref nint the_glyph, uint render_mode, nint origin, [MarshalAs(UnmanagedType.Bool)] bool destroy);
+
+    // Variable font (Multiple Masters) API.
+    [LibraryImport(LibraryName)]
+    public static partial int FT_Get_MM_Var(nint face, out nint amaster);
+
+    [LibraryImport(LibraryName)]
+    public static partial int FT_Done_MM_Var(nint library, nint amaster);
+
+    [LibraryImport(LibraryName)]
+    public static unsafe partial int FT_Set_Var_Design_Coordinates(nint face, uint num_coords, nint coords);
 }
 
 internal static class FreeTypeLoad
@@ -163,6 +176,7 @@ internal unsafe struct FT_FaceRec
     public short underline_position;
     public short underline_thickness;
     public nint glyph; // FT_GlyphSlot
+    public nint size;  // FT_Size
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -172,4 +186,68 @@ internal struct FT_BBox
     public nint yMin;
     public nint xMax;
     public nint yMax;
+}
+
+/// <summary>FT_Size_Metrics — scaled font metrics from FT_Size.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct FT_Size_Metrics
+{
+    public ushort x_ppem;
+    public ushort y_ppem;
+    // Padding to align FT_Fixed (long / nint) on natural boundary.
+    private readonly uint _pad;
+    public nint x_scale;    // FT_Fixed 16.16
+    public nint y_scale;    // FT_Fixed 16.16
+    public nint ascender;   // FT_Pos 26.6
+    public nint descender;  // FT_Pos 26.6
+    public nint height;     // FT_Pos 26.6
+    public nint max_advance; // FT_Pos 26.6
+}
+
+/// <summary>FT_SizeRec — represents a font size object.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct FT_SizeRec
+{
+    public nint face;
+    public nint genericData;
+    public nint genericFinalizer;
+    public FT_Size_Metrics metrics;
+}
+
+/// <summary>FT_Var_Axis — describes one variation axis of a variable font.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct FT_Var_Axis
+{
+    public nint name;       // FT_String* (char*)
+    public nint minimum;    // FT_Fixed 16.16
+    public nint def;        // FT_Fixed 16.16
+    public nint maximum;    // FT_Fixed 16.16
+    public uint tag;        // FT_ULong — axis tag, e.g. 'wght'
+    public uint strid;      // FT_UInt  — name string ID
+}
+
+/// <summary>FT_MM_Var — describes variable font axes and named styles.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct FT_MM_Var
+{
+    public uint num_axis;
+    public uint num_designs;
+    public uint num_namedstyles;
+    public FT_Var_Axis* axis;
+    // ... remaining fields omitted (namedstyle, etc.)
+}
+
+internal static class FreeTypeFaceFlags
+{
+    public const long FT_FACE_FLAG_MULTIPLE_MASTERS = 1L << 8;
+}
+
+internal static class FreeTypeVarAxisTags
+{
+    // 'wght' = 0x77676874
+    public const uint WGHT = ((uint)'w' << 24) | ((uint)'g' << 16) | ((uint)'h' << 8) | (uint)'t';
+    // 'ital' = 0x6974616C
+    public const uint ITAL = ((uint)'i' << 24) | ((uint)'t' << 16) | ((uint)'a' << 8) | (uint)'l';
+    // 'slnt' = 0x736C6E74
+    public const uint SLNT = ((uint)'s' << 24) | ((uint)'l' << 16) | ((uint)'n' << 8) | (uint)'t';
 }
