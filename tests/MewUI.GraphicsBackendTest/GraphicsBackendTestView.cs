@@ -14,14 +14,12 @@ internal sealed class GraphicsBackendTestView : ContentControl
 
     public GraphicsBackendTestView()
     {
-        Padding = new Thickness(12);
-
         _canvas = new GraphicsBackendTestCanvas();
 
         _scroll = new ScrollViewer
         {
             Content = _canvas,
-            Padding = new Thickness(0),
+            Padding = new Thickness(16),
         };
         AttachChild(_scroll);
         Content = _scroll;
@@ -58,7 +56,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
         BorderThickness = 0;
         Padding = new Thickness(0);
 
-
         BuildTests();
     }
 
@@ -82,7 +79,7 @@ internal sealed class GraphicsBackendTestCanvas : Control
 
             g.DrawRectangle(new Rect(r.X + 10, r.Y + 10, 70, 50), Theme.Palette.Accent, 1);
             g.FillRectangle(new Rect(r.X + 95, r.Y + 10, 70, 50), Theme.Palette.Accent.WithAlpha(0x66));
-            g.DrawRectangle(new Rect(r.X + 95, r.Y + 10, 70, 50), Theme.Palette.Accent, 1);
+            g.DrawRectangle(new Rect(r.X + 95, r.Y + 10, 70, 50), Theme.Palette.Accent, 1, strokeInset: true);
 
             g.DrawRectangle(new Rect(r.X + 10, r.Y + 75, 155, 50), Theme.Palette.Accent, 2);
         }));
@@ -92,10 +89,10 @@ internal sealed class GraphicsBackendTestCanvas : Control
 
             var bg = Theme.Palette.Accent.WithAlpha(0x44);
             g.FillRoundedRectangle(new Rect(r.X + 10, r.Y + 10, 155, 50), 8, 8, bg);
-            g.DrawRoundedRectangle(new Rect(r.X + 10, r.Y + 10, 155, 50), 8, 8, Theme.Palette.Accent, 1);
+            g.DrawRoundedRectangle(new Rect(r.X + 10, r.Y + 10, 155, 50), 8, 8, Theme.Palette.Accent, 1, strokeInset: true);
 
             g.FillRoundedRectangle(new Rect(r.X + 10, r.Y + 75, 155, 50), 18, 18, bg);
-            g.DrawRoundedRectangle(new Rect(r.X + 10, r.Y + 75, 155, 50), 18, 18, Theme.Palette.Accent, 2);
+            g.DrawRoundedRectangle(new Rect(r.X + 10, r.Y + 75, 155, 50), 18, 18, Theme.Palette.Accent, 2, strokeInset: true);
         }));
 
         _tests.Add(new TestCase("Ellipse / Stroke", (g, r) =>
@@ -104,15 +101,15 @@ internal sealed class GraphicsBackendTestCanvas : Control
             var fill = Theme.Palette.Accent.WithAlpha(0x44);
             var outer = new Rect(r.X + 12, r.Y + 12, 60, 60);
             g.FillEllipse(outer, fill);
-            g.DrawEllipse(outer, Theme.Palette.Accent, 1);
+            g.DrawEllipse(outer, Theme.Palette.Accent, 1, strokeInset: true);
 
             var outer2 = new Rect(r.X + 96, r.Y + 12, 60, 60);
             g.FillEllipse(outer2, fill);
-            g.DrawEllipse(outer2, Theme.Palette.Accent, 2);
+            g.DrawEllipse(outer2, Theme.Palette.Accent, 2, strokeInset: true);
 
             var thin = new Rect(r.X + 12, r.Y + 90, 144, 40);
             g.FillEllipse(thin, fill);
-            g.DrawEllipse(thin, Theme.Palette.Accent, 1);
+            g.DrawEllipse(thin, Theme.Palette.Accent, 1, strokeInset: true);
         }));
 
         _tests.Add(new TestCase("Clip", (g, r) =>
@@ -153,19 +150,19 @@ internal sealed class GraphicsBackendTestCanvas : Control
             // Semi-transparent fill + stroke should render consistently across backends.
             var rr1 = new Rect(r.X + 10, r.Y + 10, 70, 50);
             g.FillRoundedRectangle(rr1, 8, 8, fill);
-            g.DrawRoundedRectangle(rr1, 8, 8, stroke, 2);
+            g.DrawRoundedRectangle(rr1, 8, 8, stroke, 2, strokeInset: true);
 
             var rr2 = new Rect(r.X + 95, r.Y + 10, 70, 50);
             g.FillRectangle(rr2, fill);
-            g.DrawRectangle(rr2, stroke, 2);
+            g.DrawRectangle(rr2, stroke, 2, strokeInset: true);
 
             var e1 = new Rect(r.X + 10, r.Y + 75, 60, 60);
             g.FillEllipse(e1, fill);
-            g.DrawEllipse(e1, stroke, 2);
+            g.DrawEllipse(e1, stroke, 2, strokeInset: true);
 
             var e2 = new Rect(r.X + 95, r.Y + 75, 70, 50);
             g.FillEllipse(e2, fill);
-            g.DrawEllipse(e2, stroke, 2);
+            g.DrawEllipse(e2, stroke, 2, strokeInset: true);
 
             // Non-axis-aligned line with alpha to validate AA + compositing.
             g.DrawLine(new Point(r.X + 10, r.Bottom - 18), new Point(r.Right - 10, r.Bottom - 48), stroke, 2);
@@ -337,7 +334,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             }
         }));
 
-        // ── PathGeometry: Basic shapes ──────────────────────────────────────
         _tests.Add(new TestCase("Path: Triangle + Star", (g, r) =>
         {
             var accent = Theme.Palette.Accent;
@@ -369,7 +365,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             g.DrawPath(star, accent, 1);
         }));
 
-        // ── PathGeometry: Bezier curves ─────────────────────────────────────
         _tests.Add(new TestCase("Path: Bezier + QuadTo", (g, r) =>
         {
             var accent = Theme.Palette.Accent;
@@ -404,7 +399,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             g.DrawPath(blob, accent, 1);
         }));
 
-        // ── PathGeometry: Arc ───────────────────────────────────────────────
         _tests.Add(new TestCase("Path: Arc / ArcTo", (g, r) =>
         {
             var accent = Theme.Palette.Accent;
@@ -433,7 +427,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             g.DrawPath(ellArc, c2, 1.5);
         }));
 
-        // ── PathGeometry: SvgArcTo ──────────────────────────────────────────
         _tests.Add(new TestCase("Path: SvgArcTo", (g, r) =>
         {
             var accent = Theme.Palette.Accent;
@@ -470,7 +463,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             g.DrawPath(pill, accent, 1);
         }));
 
-        // ── PathGeometry: Static factories ──────────────────────────────────
         _tests.Add(new TestCase("Path: FromRect/Ellipse/Circle", (g, r) =>
         {
             var accent = Theme.Palette.Accent;
@@ -498,7 +490,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             g.DrawPath(pCorners, accent, 1);
         }));
 
-        // ── StrokeStyle: LineCap ────────────────────────────────────────────
         _tests.Add(new TestCase("StrokeStyle: LineCap", (g, r) =>
         {
             var factory = Application.Current.GraphicsFactory;
@@ -520,7 +511,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             }
         }));
 
-        // ── StrokeStyle: LineJoin ───────────────────────────────────────────
         _tests.Add(new TestCase("StrokeStyle: LineJoin", (g, r) =>
         {
             var factory = Application.Current.GraphicsFactory;
@@ -546,7 +536,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             }
         }));
 
-        // ── StrokeStyle: DashArray ──────────────────────────────────────────
         _tests.Add(new TestCase("StrokeStyle: DashArray", (g, r) =>
         {
             var factory = Application.Current.GraphicsFactory;
@@ -576,7 +565,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             }
         }));
 
-        // ── StrokeStyle: IPen on shapes ─────────────────────────────────────
         _tests.Add(new TestCase("IPen: Rect/RoundRect/Ellipse", (g, r) =>
         {
             var factory = Application.Current.GraphicsFactory;
@@ -606,7 +594,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             g.DrawPath(path, dashPen);
         }));
 
-        // ── Linear Gradient Brush ───────────────────────────────────────────
         _tests.Add(new TestCase("LinearGradientBrush", (g, r) =>
         {
             var factory = Application.Current.GraphicsFactory;
@@ -633,7 +620,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             g.FillEllipse(rect3, dBrush);
         }));
 
-        // ── Radial Gradient Brush ───────────────────────────────────────────
         _tests.Add(new TestCase("RadialGradientBrush", (g, r) =>
         {
             var factory = Application.Current.GraphicsFactory;
@@ -661,7 +647,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             g.FillPath(path, rBrush3);
         }));
 
-        // ── Rotate / Scale ──────────────────────────────────────────────────
         _tests.Add(new TestCase("Rotate / Scale", (g, r) =>
         {
             var accent = Theme.Palette.Accent;
@@ -677,7 +662,7 @@ internal sealed class GraphicsBackendTestCanvas : Control
             g.Rotate(15 * Math.PI / 180);
             g.Translate(-(box.X + box.Width / 2), -(box.Y + box.Height / 2));
             g.FillRectangle(box, fill);
-            g.DrawRectangle(box, accent, 1);
+            g.DrawRectangle(box, accent, 1, strokeInset: true);
             g.Restore();
 
             // Scaled shape
@@ -687,7 +672,7 @@ internal sealed class GraphicsBackendTestCanvas : Control
             g.Scale(1.5, 0.8);
             g.Translate(-scx, -scy);
             g.FillEllipse(new Rect(scx - 25, scy - 25, 50, 50), fill);
-            g.DrawEllipse(new Rect(scx - 25, scy - 25, 50, 50), accent, 1);
+            g.DrawEllipse(new Rect(scx - 25, scy - 25, 50, 50), accent, 1, strokeInset: true);
             g.Restore();
 
             // Multiple rotations fan
@@ -703,7 +688,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             }
         }));
 
-        // ── Translate ───────────────────────────────────────────────────────
         _tests.Add(new TestCase("Translate", (g, r) =>
         {
             var accent = Theme.Palette.Accent;
@@ -714,12 +698,11 @@ internal sealed class GraphicsBackendTestCanvas : Control
                 g.Save();
                 g.Translate(i * 40, i * 25);
                 g.FillRectangle(new Rect(r.X + 10, r.Y + 10, 30, 30), accent.WithAlpha((byte)(0x44 + i * 0x33)));
-                g.DrawRectangle(new Rect(r.X + 10, r.Y + 10, 30, 30), accent, 1);
+                g.DrawRectangle(new Rect(r.X + 10, r.Y + 10, 30, 30), accent, 1, strokeInset: true);
                 g.Restore();
             }
         }));
 
-        // ── Nested Transforms ──────────────────────────────────────────────
         _tests.Add(new TestCase("Nested Transforms", (g, r) =>
         {
             var accent = Theme.Palette.Accent;
@@ -742,7 +725,7 @@ internal sealed class GraphicsBackendTestCanvas : Control
             g.Save();
             g.Scale(1.5, 1.0);
             g.FillRectangle(new Rect(-30, -15, 60, 30), accent.WithAlpha(0x55));
-            g.DrawRectangle(new Rect(-30, -15, 60, 30), accent, 2);
+            g.DrawRectangle(new Rect(-30, -15, 60, 30), accent, 2, strokeInset: true);
             g.Restore(); // undo scale
 
             // Still rotated, draw a circle
@@ -758,7 +741,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
             g.FillRectangle(new Rect(r.X + r.Width - 10, r.Y + r.Height - 10, 6, 6), accent);
         }));
 
-        // ── GlobalAlpha ─────────────────────────────────────────────────────
         _tests.Add(new TestCase("GlobalAlpha", (g, r) =>
         {
             var accent = Theme.Palette.Accent;
@@ -768,7 +750,7 @@ internal sealed class GraphicsBackendTestCanvas : Control
             for (int i = 0; i < 4; i++)
             {
                 g.Save();
-                g.GlobalAlpha = alphas[i];
+                g.GlobalAlpha *= alphas[i];
                 g.FillRoundedRectangle(new Rect(r.X + 10 + i * 35, r.Y + 15 + i * 15, 80, 50), 6, 6, accent);
                 g.Restore();
             }
@@ -777,14 +759,13 @@ internal sealed class GraphicsBackendTestCanvas : Control
             for (int i = 0; i < 5; i++)
             {
                 g.Save();
-                g.GlobalAlpha = 1.0f - i * 0.2f;
+                g.GlobalAlpha *= 1.0f - i * 0.2f;
                 double y = r.Y + 100 + i * 12;
                 g.DrawLine(new Point(r.X + 10, y), new Point(r.X + r.Width - 10, y), accent, 3);
                 g.Restore();
             }
         }));
 
-        // ── SetClipRoundedRect ──────────────────────────────────────────────
         _tests.Add(new TestCase("SetClipRoundedRect", (g, r) =>
         {
             var accent = Theme.Palette.Accent;
@@ -807,10 +788,9 @@ internal sealed class GraphicsBackendTestCanvas : Control
 
             // Unclipped rect below for contrast
             g.FillRectangle(new Rect(r.X + 20, r.Y + 110, 120, 30), fill);
-            g.DrawRectangle(new Rect(r.X + 20, r.Y + 110, 120, 30), accent, 1);
+            g.DrawRectangle(new Rect(r.X + 20, r.Y + 110, 120, 30), accent, 1, strokeInset: true);
         }));
 
-        // ── FillRule ────────────────────────────────────────────────────────
         _tests.Add(new TestCase("FillRule: NonZero vs EvenOdd", (g, r) =>
         {
             var accent = Theme.Palette.Accent;
@@ -860,7 +840,6 @@ internal sealed class GraphicsBackendTestCanvas : Control
                 TextAlignment.Center, TextAlignment.Center, TextWrapping.NoWrap);
         }));
 
-        // ── Gradient + StrokeStyle combined ─────────────────────────────────
         _tests.Add(new TestCase("Gradient Pen + DashPath", (g, r) =>
         {
             var factory = Application.Current.GraphicsFactory;
@@ -884,6 +863,172 @@ internal sealed class GraphicsBackendTestCanvas : Control
                 wave.QuadTo(r.X + 10 + wx + 30, r.Y + 65, r.X + 10 + wx + 40, r.Y + 40);
             }
             g.DrawPath(wave, gradPen);
+        }));
+
+        // ── Pixel Snap Tests ──
+
+        _tests.Add(new TestCase("PixelSnap — H Lines", (g, r) =>
+        {
+            // Dense horizontal lines at sub-pixel Y offsets.
+            // With pixelSnap all lines should render as uniform 1px; without snap some blur.
+            var c = Theme.Palette.WindowText;
+            double x0 = r.X + 4;
+            double x1 = r.X + r.Width / 2 - 4;
+            double x2 = r.X + r.Width / 2 + 4;
+            double x3 = r.Right - 4;
+
+            // Left column: 1px lines, right column: 2px lines
+            for (int i = 0; i < 28; i++)
+            {
+                double y = r.Y + 4 + i * 5 + i * 0.3; // deliberately sub-pixel
+                g.DrawLine(new Point(x0, y), new Point(x1, y), c, 1, pixelSnap: true);
+                g.DrawLine(new Point(x2, y), new Point(x3, y), c, 2, pixelSnap: true);
+            }
+        }));
+
+        _tests.Add(new TestCase("PixelSnap — V Lines", (g, r) =>
+        {
+            // Dense vertical lines at sub-pixel X offsets.
+            var c = Theme.Palette.WindowText;
+            double y0 = r.Y + 4;
+            double y1 = r.Y + r.Height / 2 - 4;
+            double y2 = r.Y + r.Height / 2 + 4;
+            double y3 = r.Bottom - 4;
+
+            // Top half: 1px lines, bottom half: 2px lines
+            for (int i = 0; i < 32; i++)
+            {
+                double x = r.X + 4 + i * 6 + i * 0.3;
+                g.DrawLine(new Point(x, y0), new Point(x, y1), c, 1, pixelSnap: true);
+                g.DrawLine(new Point(x, y2), new Point(x, y3), c, 2, pixelSnap: true);
+            }
+        }));
+
+        _tests.Add(new TestCase("PixelSnap — Rects", (g, r) =>
+        {
+            // Dense rectangles with sub-pixel offsets (col * 0.3). 1px/2px stroke inset.
+            var fill = Theme.Palette.Accent.WithAlpha(0x33);
+            var stroke = Theme.Palette.Accent;
+
+            for (int row = 0; row < 4; row++)
+            {
+                for (int col = 0; col < 6; col++)
+                {
+                    double x = r.X + 4 + col * 36 + col * 0.3;
+                    double y = r.Y + 4 + row * 36 + row * 0.3;
+                    double thick = row < 2 ? 1 : 2;
+                    var rc = new Rect(x, y, 30, 30);
+                    g.FillRectangle(rc, fill);
+                    g.DrawRectangle(rc, stroke, thick, strokeInset: true);
+                }
+            }
+        }));
+
+        _tests.Add(new TestCase("PixelSnap — RoundedRects", (g, r) =>
+        {
+            // Dense rounded rectangles with sub-pixel offsets. 1px/2px stroke inset.
+            var fill = Theme.Palette.Accent.WithAlpha(0x33);
+            var stroke = Theme.Palette.Accent;
+
+            for (int row = 0; row < 4; row++)
+            {
+                for (int col = 0; col < 3; col++)
+                {
+                    double x = r.X + 4 + col * 72 + col * 0.3;
+                    double y = r.Y + 4 + row * 36 + row * 0.3;
+                    double thick = row < 2 ? 1 : 2;
+                    var rc = new Rect(x, y, 64, 30);
+                    g.FillRoundedRectangle(rc, 6, 6, fill);
+                    g.DrawRoundedRectangle(rc, 6, 6, stroke, thick, strokeInset: true);
+                }
+            }
+        }));
+
+        _tests.Add(new TestCase("PixelSnap — Ellipses", (g, r) =>
+        {
+            // Dense ellipses with sub-pixel offsets. 1px/2px stroke inset.
+            var fill = Theme.Palette.Accent.WithAlpha(0x33);
+            var stroke = Theme.Palette.Accent;
+
+            for (int row = 0; row < 4; row++)
+            {
+                for (int col = 0; col < 4; col++)
+                {
+                    double x = r.X + 4 + col * 52 + col * 0.3;
+                    double y = r.Y + 4 + row * 36 + row * 0.3;
+                    double thick = row < 2 ? 1 : 2;
+                    var rc = new Rect(x, y, 44, 30);
+                    g.FillEllipse(rc, fill);
+                    g.DrawEllipse(rc, stroke, thick, strokeInset: true);
+                }
+            }
+        }));
+
+        _tests.Add(new TestCase("PixelSnap — Grid", (g, r) =>
+        {
+            // Tight grid of H+V lines simulating table/grid rendering.
+            var c = Theme.Palette.ControlBorder;
+            int cols = 10;
+            int rows = 8;
+            double cellW = (r.Width - 8) / cols;
+            double cellH = (r.Height - 8) / rows;
+
+            for (int i = 0; i <= cols; i++)
+            {
+                double x = r.X + 4 + i * cellW;
+                g.DrawLine(new Point(x, r.Y + 4), new Point(x, r.Bottom - 4), c, 1, pixelSnap: true);
+            }
+
+            for (int i = 0; i <= rows; i++)
+            {
+                double y = r.Y + 4 + i * cellH;
+                g.DrawLine(new Point(r.X + 4, y), new Point(r.Right - 4, y), c, 1, pixelSnap: true);
+            }
+        }));
+
+        _tests.Add(new TestCase("PixelSnap — Mixed", (g, r) =>
+        {
+            // All primitives at the same sub-pixel offsets for direct comparison.
+            var fill = Theme.Palette.Accent.WithAlpha(0x33);
+            var stroke = Theme.Palette.Accent;
+            var lineC = Theme.Palette.WindowText;
+            double off = 0.3; // deliberate sub-pixel offset
+
+            // Row 1: H line, V line
+            double y1 = r.Y + 8 + off;
+            g.DrawLine(new Point(r.X + 4, y1), new Point(r.X + r.Width / 2 - 4, y1), lineC, 1, pixelSnap: true);
+            double x1 = r.X + r.Width / 2 + 8 + off;
+            g.DrawLine(new Point(x1, r.Y + 4), new Point(x1, r.Y + 30), lineC, 1, pixelSnap: true);
+
+            // Row 2: Rect, RoundedRect
+            var rc1 = new Rect(r.X + 4 + off, r.Y + 36 + off, 90, 32);
+            g.FillRectangle(rc1, fill);
+            g.DrawRectangle(rc1, stroke, 1, strokeInset: true);
+
+            var rc2 = new Rect(r.X + 108 + off, r.Y + 36 + off, 90, 32);
+            g.FillRoundedRectangle(rc2, 6, 6, fill);
+            g.DrawRoundedRectangle(rc2, 6, 6, stroke, 1, strokeInset: true);
+
+            // Row 3: Ellipses circle + wide
+            var rc3 = new Rect(r.X + 4 + off, r.Y + 76 + off, 40, 40);
+            g.FillEllipse(rc3, fill);
+            g.DrawEllipse(rc3, stroke, 1, strokeInset: true);
+
+            var rc4 = new Rect(r.X + 56 + off, r.Y + 76 + off, 140, 40);
+            g.FillEllipse(rc4, fill);
+            g.DrawEllipse(rc4, stroke, 1, strokeInset: true);
+
+            // Row 4: same shapes with 2px border
+            var rc5 = new Rect(r.X + 4 + off, r.Y + 124 + off, 60, 32);
+            g.FillRoundedRectangle(rc5, 4, 4, fill);
+            g.DrawRoundedRectangle(rc5, 4, 4, stroke, 2, strokeInset: true);
+
+            var rc6 = new Rect(r.X + 76 + off, r.Y + 124 + off, 40, 32);
+            g.FillEllipse(rc6, fill);
+            g.DrawEllipse(rc6, stroke, 2, strokeInset: true);
+
+            double y4 = r.Y + 130 + off;
+            g.DrawLine(new Point(r.X + 128, y4), new Point(r.Right - 4, y4), lineC, 2, pixelSnap: true);
         }));
     }
 
@@ -910,22 +1055,25 @@ internal sealed class GraphicsBackendTestCanvas : Control
         var source = ImageSource.FromResource(Assembly.GetExecutingAssembly(), "Aprillz.MewUI.GraphicsBackendTest.logo_c-256.png");
         _logo = source.CreateImage(Application.Current.GraphicsFactory);
     }
+    private static double SnapFloor(double value, double dpiScale)
+        => dpiScale > 0 ? Math.Floor(value * dpiScale) / dpiScale : Math.Floor(value);
+
+    private static double Snap(double value, double dpiScale)
+        => dpiScale > 0 ? Math.Round(value * dpiScale) / dpiScale : Math.Round(value);
+
+    private static double SnapSize(double value, double dpiScale)
+        => dpiScale > 0 ? Math.Max(1, Math.Round(value * dpiScale)) / dpiScale : Math.Max(1, Math.Round(value));
+
     protected override Size MeasureContent(Size availableSize)
     {
         double width = double.IsPositiveInfinity(availableSize.Width) ? 900 : Math.Max(0, availableSize.Width);
+        double dpiScale = GetDpi() / 96.0;
         int columns = Math.Max(1, (int)Math.Floor((width + CardGap) / (CardMinWidth + CardGap)));
-        double cardWidth = Math.Max(CardMinWidth, (width - (columns - 1) * CardGap) / columns);
+        double cardWidth = SnapFloor(Math.Max(CardMinWidth, (width - (columns - 1) * CardGap) / columns), dpiScale);
 
         int rows = (int)Math.Ceiling(_tests.Count / (double)columns);
-        double height = rows * CardHeight + Math.Max(0, rows - 1) * CardGap;
-        return new Size(cardWidth * columns + (columns - 1) * CardGap, height);
-    }
-
-    protected override void OnDispose()
-    {
-        base.OnDispose();
-        _image?.Dispose();
-        _image = null;
+        double gridHeight = rows * CardHeight + Math.Max(0, rows - 1) * CardGap;
+        return new Size(cardWidth * columns + (columns - 1) * CardGap, HeaderHeight + 8 + gridHeight);
     }
 
     protected override void OnRender(IGraphicsContext context)
@@ -933,10 +1081,10 @@ internal sealed class GraphicsBackendTestCanvas : Control
         var theme = Theme;
         var bounds = Bounds;
         var dpiScale = GetDpi() / 96.0;
-        
+
         double width = Math.Max(0, bounds.Width);
         int columns = Math.Max(1, (int)Math.Floor((width + CardGap) / (CardMinWidth + CardGap)));
-        double cardWidth = Math.Round(Math.Max(CardMinWidth, (width - (columns - 1) * CardGap) / columns));
+        double cardWidth = SnapFloor(Math.Max(CardMinWidth, (width - (columns - 1) * CardGap) / columns), dpiScale);
 
         using var measure = BeginTextMeasurement();
         var font = measure.Font;
@@ -959,7 +1107,7 @@ internal sealed class GraphicsBackendTestCanvas : Control
 
             // Card chrome
             context.FillRoundedRectangle(card, 8, 8, Theme.Palette.WindowBackground);
-            context.DrawRoundedRectangle(card, 8, 8, Theme.Palette.ControlBorder, 1);
+            context.DrawRoundedRectangle(card, 8, 8, Theme.Palette.ControlBorder, 1, strokeInset: true);
 
             var nameRect = new Rect(card.X + 10, card.Y + 8, card.Width - 20, 22);
             context.DrawText(_tests[i].Name, nameRect, font, theme.Palette.WindowText,
@@ -971,5 +1119,11 @@ internal sealed class GraphicsBackendTestCanvas : Control
             _tests[i].Render(context, content);
             context.Restore();
         }
+    }
+    protected override void OnDispose()
+    {
+        base.OnDispose();
+        _image?.Dispose();
+        _image = null;
     }
 }
