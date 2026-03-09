@@ -11,5 +11,6 @@ internal sealed class BasicFont : FontBase
     {
         Ascent = size;
         Descent = size * 0.25;
+        CapHeight = size * 0.7;
     }
 }

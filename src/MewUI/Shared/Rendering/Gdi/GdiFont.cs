@@ -43,6 +43,10 @@ internal sealed class GdiFont : FontBase
         Ascent = tm.tmAscent / dpiScale;
         Descent = tm.tmDescent / dpiScale;
         InternalLeading = tm.tmInternalLeading / dpiScale;
+        // GDI TEXTMETRIC doesn't expose cap height directly.
+        // Approximate: pure ascent (without internal leading) ? cap height + overshoot.
+        // ~92% of pure ascent is a reasonable cap height approximation.
+        CapHeight = (tm.tmAscent - tm.tmInternalLeading) * 0.92 / dpiScale;
     }
 
     /// <summary>Internal leading in pixels (for use by rasterizers operating in pixel space).</summary>

@@ -49,4 +49,10 @@ public interface IFont : IDisposable
     /// Gets the internal leading in device-independent units (extra space above the ascent within the line height).
     /// </summary>
     double InternalLeading { get; }
+
+    /// <summary>
+    /// Gets the cap height in device-independent units (height of flat capital letters like 'H').
+    /// Used for visual centering. Falls back to <c>Ascent * 0.7</c> if unavailable.
+    /// </summary>
+    double CapHeight { get; }
 }

@@ -39,6 +39,7 @@ internal sealed unsafe class DirectWriteFont : FontBase
             // Internal leading = line height - em square = (ascent + descent + lineGap - designUnitsPerEm) * scale
             double leading = (metrics.ascent + metrics.descent + metrics.lineGap - metrics.designUnitsPerEm) * scale;
             InternalLeading = Math.Max(0, leading);
+            CapHeight = metrics.capHeight > 0 ? metrics.capHeight * scale : Ascent * 0.7;
         }
         finally
         {

@@ -171,9 +171,8 @@ internal static unsafe partial class CoreTextText
                     };
 
                     // Baseline in "top-left" coordinates.
-                    // Distribute font leading evenly above and below the glyph box to avoid a "top-aligned" look
-                    // when LineHeight includes non-zero leading (notably on macOS/CoreText).
-                    double baselineTop = topY + (metrics.Leading * 0.5) + metrics.Ascent + i * metrics.LineHeight;
+                    // Leading trim is handled centrally by GraphicsContextBase.
+                    double baselineTop = topY + metrics.Ascent + i * metrics.LineHeight;
                     // Convert to CoreGraphics user space (bottom-left origin).
                     double baselineY = heightPx - baselineTop;
 

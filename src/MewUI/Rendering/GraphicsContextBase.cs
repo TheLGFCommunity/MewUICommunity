@@ -233,11 +233,15 @@ public abstract class GraphicsContextBase : IGraphicsContext
     {
         if (IsCulled(bounds)) return;
 
-        // Leading trim: center the ascent midpoint (between glyph top and baseline)
-        // within bounds instead of centering the full line height.
-        // Offset = (InternalLeading - Descent) / 2
-        double leadingTrim = (font.InternalLeading - font.Descent) / 2.0;
-        if (leadingTrim != 0)
+        // Cap-height centering: shift text so the cap-height midpoint aligns with
+        // bounds center instead of the line-height midpoint.
+        // lineHeight = Size + InternalLeading (consistent across all backends).
+        // capCenter = baseline - capHeight/2 = (lineHeight - Descent) - capHeight/2
+        // lineCenter = lineHeight / 2
+        // shift = capCenter - lineCenter = lineHeight/2 - Descent - capHeight/2
+        double lineHeight = font.Size + font.InternalLeading;
+        double leadingTrim = Math.Max(0, lineHeight / 2.0 - font.Descent - font.CapHeight / 2.0);
+        if (leadingTrim > 0)
         {
             bounds = new Rect(bounds.X, bounds.Y - leadingTrim, bounds.Width, bounds.Height);
         }

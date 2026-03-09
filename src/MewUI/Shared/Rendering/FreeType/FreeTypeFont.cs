@@ -24,6 +24,9 @@ internal sealed class FreeTypeFont : FontBase
             Ascent = ascentPx / dpiScale;
             Descent = descentPx / dpiScale;
             InternalLeading = Math.Max(0, (heightPx - ascentPx - descentPx) / dpiScale);
+            // FreeType doesn't expose cap height via FT_Size_Metrics.
+            // Approximate from ascent (pure typographic ascent from FreeType).
+            CapHeight = Ascent * 0.92;
         }
         catch
         {

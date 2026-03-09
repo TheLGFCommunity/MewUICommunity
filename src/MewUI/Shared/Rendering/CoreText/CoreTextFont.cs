@@ -35,7 +35,11 @@ internal sealed unsafe partial class CoreTextFont : FontBase
             double leadingPx = CoreTextNative.CTFontGetLeading(fontRef);
             Ascent = ascentPx / dpiScale;
             Descent = descentPx / dpiScale;
-            InternalLeading = leadingPx / dpiScale;
+            // Internal leading = (ascent + descent + lineGap) - emSize.
+            // CTFontGetLeading returns lineGap; emSize in pixels = size * dpiScale.
+            InternalLeading = Math.Max(0, (ascentPx + descentPx + leadingPx) / dpiScale - size);
+            double capHeightPx = CoreTextNative.CTFontGetCapHeight(fontRef);
+            CapHeight = capHeightPx > 0 ? capHeightPx / dpiScale : Ascent * 0.7;
         }
     }
 
@@ -383,5 +387,8 @@ internal sealed unsafe partial class CoreTextFont : FontBase
 
         [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
         internal static partial double CTFontGetLeading(nint font);
+
+        [LibraryImport("/System/Library/Frameworks/CoreText.framework/CoreText")]
+        internal static partial double CTFontGetCapHeight(nint font);
     }
 }
