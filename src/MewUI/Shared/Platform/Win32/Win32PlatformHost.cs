@@ -30,6 +30,8 @@ public sealed class Win32PlatformHost : IPlatformHost
     private int _renderRequested;
     private nint _renderEvent;
 
+    public string DefaultFontFamily => "Segoe UI";
+
     public IMessageBoxService MessageBox { get; } = new Win32MessageBoxService();
 
     public IFileDialogService FileDialog { get; } = new Win32FileDialogService();

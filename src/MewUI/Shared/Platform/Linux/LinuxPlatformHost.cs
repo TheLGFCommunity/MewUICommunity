@@ -6,6 +6,8 @@ namespace Aprillz.MewUI.Platform.Linux;
 /// </summary>
 public sealed class LinuxPlatformHost : IPlatformHost
 {
+    public string DefaultFontFamily => "sans-serif";
+
     public IMessageBoxService MessageBox { get; } = new LinuxMessageBoxService();
 
     public IFileDialogService FileDialog { get; } = new LinuxFileDialogService();

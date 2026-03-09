@@ -15,6 +15,8 @@ public sealed class MacOSPlatformHost : IPlatformHost
     private int _themeUpdateRequested;
     private RenderLoopMode _lastRenderMode;
 
+    public string DefaultFontFamily => ".AppleSystemUIFont";
+
     public IMessageBoxService MessageBox { get; } = new MacOSMessageBoxService();
 
     public IFileDialogService FileDialog { get; } = new MacOSFileDialogService();
