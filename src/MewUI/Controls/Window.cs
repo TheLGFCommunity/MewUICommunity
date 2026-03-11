@@ -81,6 +81,26 @@ public partial class Window : ContentControl, ILayoutRoundingHost
 
     internal void SetMouseOverElement(UIElement? element) => _mouseOverElement = element;
 
+    /// <summary>
+    /// Resolves the effective cursor for the given element by walking up the visual tree
+    /// until a non-None cursor is found, then applies it via the backend.
+    /// </summary>
+    internal void UpdateCursorForElement(UIElement? element)
+    {
+        var cursor = CursorType.None;
+        for (var current = element; current != null; current = current.Parent as UIElement)
+        {
+            var c = current.Cursor;
+            if (c != CursorType.None)
+            {
+                cursor = c;
+                break;
+            }
+        }
+
+        _backend?.SetCursor(cursor == CursorType.None ? CursorType.Arrow : cursor);
+    }
+
     internal void UpdateLastMousePosition(Point positionDip, Point screenPositionPx)
     {
         _lastMousePositionDip = positionDip;

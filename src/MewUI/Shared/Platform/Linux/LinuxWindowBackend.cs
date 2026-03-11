@@ -72,4 +72,9 @@ internal sealed class LinuxWindowBackend : IWindowBackend
     {
         // No-op for scaffolding backend.
     }
+
+    public void SetCursor(CursorType cursorType)
+    {
+        // No-op for scaffolding backend.
+    }
 }

@@ -10,7 +10,8 @@ namespace Aprillz.MewUI.Controls;
 public sealed class SplitPanel : Panel
 {
     public static readonly MewProperty<Orientation> OrientationProperty =
-        MewProperty<Orientation>.Register<SplitPanel>(nameof(Orientation), Orientation.Horizontal, MewPropertyOptions.AffectsLayout);
+        MewProperty<Orientation>.Register<SplitPanel>(nameof(Orientation), Orientation.Horizontal, MewPropertyOptions.AffectsLayout,
+            static (self, _, _) => self.UpdateSplitterCursor());
 
     public static readonly MewProperty<double> SplitterThicknessProperty =
         MewProperty<double>.Register<SplitPanel>(nameof(SplitterThickness), 8.0, MewPropertyOptions.AffectsLayout);

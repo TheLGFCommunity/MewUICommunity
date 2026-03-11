@@ -155,7 +155,7 @@ public sealed class X11PlatformHost : IPlatformHost
 
                 _dispatcher?.ProcessWorkItems();
 
-                if (scheduler.Mode == RenderLoopMode.Continuous)
+                if (scheduler.IsContinuous)
                 {
                     RenderAllWindows();
 
@@ -194,7 +194,7 @@ public sealed class X11PlatformHost : IPlatformHost
                 break;
             }
 
-            if (scheduler.Mode == RenderLoopMode.Continuous)
+            if (scheduler.IsContinuous)
             {
                 continue;
             }

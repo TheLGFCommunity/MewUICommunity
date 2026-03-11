@@ -47,6 +47,12 @@ internal sealed partial class MewVGGraphicsContext
             }
 
             OpenGLExt.BindFramebuffer(OpenGLExt.GL_FRAMEBUFFER, _bitmapTarget.Fbo);
+
+            // Clear FBO to transparent black before rendering.
+            // NanoVG's blending (SRC_ALPHA, ONE_MINUS_SRC_ALPHA) cannot overwrite with alpha=0,
+            // so a hardware clear is required for proper layered window transparency.
+            GL.ClearColor(0f, 0f, 0f, 0f);
+            GL.Clear(GL.GL_COLOR_BUFFER_BIT);
         }
 
         GL.Viewport(0, 0, _viewportWidthPx, _viewportHeightPx);

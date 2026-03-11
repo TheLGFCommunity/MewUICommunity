@@ -31,6 +31,8 @@ public sealed class Win32PlatformHost : IPlatformHost
     private nint _renderEvent;
 
     public string DefaultFontFamily => "Segoe UI";
+    //public string DefaultFontFamily => "Noto Sans";
+    //public string DefaultFontFamily => "Noto Sans KR";
 
     public IMessageBoxService MessageBox { get; } = new Win32MessageBoxService();
 
@@ -127,7 +129,7 @@ public sealed class Win32PlatformHost : IPlatformHost
             {
                 try
                 {
-                    if (scheduler.Mode == RenderLoopMode.Continuous)
+                    if (scheduler.IsContinuous)
                     {
                         ProcessMessages();
                         if (!_running)

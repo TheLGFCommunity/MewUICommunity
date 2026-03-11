@@ -178,6 +178,11 @@ internal sealed class TracingPlatformHost : IPlatformHost
             _innerBackend.SetAllowsTransparency(allowsTransparency);
         }
 
+        public void SetCursor(CursorType cursorType)
+        {
+            _innerBackend.SetCursor(cursorType);
+        }
+
         public void Dispose()
         {
             DiagLog.WriteAlways($"[WindowBackend#{_backendId}] Dispose windowTitle='{_window.Title}'");

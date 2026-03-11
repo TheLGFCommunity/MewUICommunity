@@ -123,4 +123,10 @@ public interface IWindowBackend : IDisposable
     /// </summary>
     /// <param name="allowsTransparency"><see langword="true"/> to enable per-pixel transparency.</param>
     void SetAllowsTransparency(bool allowsTransparency);
+
+    /// <summary>
+    /// Sets the mouse cursor for the window.
+    /// </summary>
+    /// <param name="cursorType">The cursor type to display.</param>
+    void SetCursor(CursorType cursorType);
 }

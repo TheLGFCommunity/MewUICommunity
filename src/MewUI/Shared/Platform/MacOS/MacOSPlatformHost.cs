@@ -13,7 +13,7 @@ public sealed class MacOSPlatformHost : IPlatformHost
     private nint _lastInputWindow;
     private long _lastFrameTicks;
     private int _themeUpdateRequested;
-    private RenderLoopMode _lastRenderMode;
+    private bool _lastContinuous;
 
     public string DefaultFontFamily => ".AppleSystemUIFont";
 
@@ -164,7 +164,7 @@ public sealed class MacOSPlatformHost : IPlatformHost
         _running = true;
         app.Dispatcher = _dispatcher;
         _lastFrameTicks = Stopwatch.GetTimestamp();
-        _lastRenderMode = app.RenderLoopSettings.Mode;
+        _lastContinuous = app.RenderLoopSettings.IsContinuous;
 
         // Note: Window backend will create NSWindow on Show().
         mainWindow.Show();
@@ -187,7 +187,7 @@ public sealed class MacOSPlatformHost : IPlatformHost
 
             // Render requested windows.
             var scheduler = app.RenderLoopSettings;
-            if (scheduler.Mode != _lastRenderMode && scheduler.Mode == RenderLoopMode.OnRequest)
+            if (_lastContinuous && !scheduler.IsContinuous)
             {
                 // Ensure one final render when switching from Continuous to OnRequest.
                 foreach (var backend in _windows.Values)
@@ -197,7 +197,7 @@ public sealed class MacOSPlatformHost : IPlatformHost
                 RequestRender();
                 RenderAllWindows();
             }
-            if (scheduler.Mode == RenderLoopMode.Continuous)
+            if (scheduler.IsContinuous)
             {
                 RenderAllWindows();
 
@@ -220,14 +220,14 @@ public sealed class MacOSPlatformHost : IPlatformHost
                     RequestRender();
                 }
             }
-            _lastRenderMode = scheduler.Mode;
+            _lastContinuous = scheduler.IsContinuous;
 
             if (!_running)
             {
                 break;
             }
 
-            if (scheduler.Mode == RenderLoopMode.Continuous && scheduler.TargetFps <= 0)
+            if (scheduler.IsContinuous && scheduler.TargetFps <= 0)
             {
                 // Max FPS: never block. We already polled & drained after rendering.
                 Thread.Yield();
@@ -248,7 +248,7 @@ public sealed class MacOSPlatformHost : IPlatformHost
             }
             else
             {
-                if (scheduler.Mode == RenderLoopMode.Continuous)
+                if (scheduler.IsContinuous)
                 {
                     int fps = scheduler.TargetFps;
                     if (fps > 0)

@@ -31,6 +31,7 @@ internal static class WindowInputRouter
 
         window.UpdateMouseOverChain(window.MouseOverElement, newLeaf);
         window.SetMouseOverElement(newLeaf);
+        window.UpdateCursorForElement(newLeaf);
     }
 
     public static UIElement? HitTest(Window window, Point positionInWindow)

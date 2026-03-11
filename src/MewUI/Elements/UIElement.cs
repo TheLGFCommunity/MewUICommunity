@@ -61,6 +61,14 @@ public abstract partial class UIElement : Element
             MewPropertyOptions.None);
 
     /// <summary>
+    /// Specifies the cursor to display when the mouse is over this element.
+    /// <see cref="CursorType.None"/> means no override (inherit from parent or platform default).
+    /// </summary>
+    public static readonly MewProperty<CursorType> CursorProperty =
+        MewProperty<CursorType>.Register<UIElement>(nameof(Cursor), CursorType.None,
+            MewPropertyOptions.None);
+
+    /// <summary>
     /// Called when a MewProperty value changes. Handles layout/render invalidation
     /// and property-specific side effects.
     /// </summary>
@@ -111,6 +119,14 @@ public abstract partial class UIElement : Element
 
             if (InvalidateOnMouseOverChanged)
                 InvalidateVisual();
+        }
+        else if (property == CursorProperty)
+        {
+            // If the mouse is currently over this element, update the window cursor immediately.
+            if (IsMouseOver && FindVisualRoot() is Window window)
+            {
+                window.UpdateCursorForElement(this);
+            }
         }
     }
 
@@ -181,6 +197,16 @@ public abstract partial class UIElement : Element
     {
         get => GetValue(IsHitTestVisibleProperty);
         set => SetValue(IsHitTestVisibleProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the cursor to display when the mouse is over this element.
+    /// <see cref="CursorType.None"/> means no override (inherit from parent or platform default).
+    /// </summary>
+    public CursorType Cursor
+    {
+        get => GetValue(CursorProperty);
+        set => SetValue(CursorProperty, value);
     }
 
     /// <summary>

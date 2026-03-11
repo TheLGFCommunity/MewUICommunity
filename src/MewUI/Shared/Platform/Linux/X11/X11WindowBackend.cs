@@ -33,6 +33,7 @@ internal sealed class X11WindowBackend : IWindowBackend
     private double _opacity = 1.0;
     private bool _allowsTransparency;
     private bool _enabled = true;
+    private nint _currentCursor;
     private nint _xim;
     private nint _xic;
     private nint _imePreeditAttributesList;
@@ -1346,6 +1347,12 @@ internal sealed class X11WindowBackend : IWindowBackend
 
         try
         {
+            if (_currentCursor != 0)
+            {
+                NativeX11.XFreeCursor(Display, _currentCursor);
+                _currentCursor = 0;
+            }
+
             if (_xic != 0)
             {
                 NativeX11.XDestroyIC(_xic);
@@ -1520,6 +1527,68 @@ internal sealed class X11WindowBackend : IWindowBackend
             }
 
             NativeX11.XFlush(Display);
+        }
+        catch
+        {
+            // Best-effort.
+        }
+    }
+
+    public void SetCursor(CursorType cursorType)
+    {
+        if (Display == 0 || Handle == 0)
+        {
+            return;
+        }
+
+        // X11 standard cursor font shape constants (X11/cursorfont.h)
+        const uint XC_left_ptr = 68;
+        const uint XC_xterm = 152;
+        const uint XC_watch = 150;
+        const uint XC_crosshair = 34;
+        const uint XC_sb_h_double_arrow = 108;
+        const uint XC_sb_v_double_arrow = 116;
+        const uint XC_fleur = 52;
+        const uint XC_X_cursor = 0;
+        const uint XC_hand2 = 60;
+        const uint XC_question_arrow = 92;
+        const uint XC_top_left_corner = 134;
+        const uint XC_top_right_corner = 136;
+        const uint XC_center_ptr = 22;
+
+        uint shape = cursorType switch
+        {
+            CursorType.Arrow => XC_left_ptr,
+            CursorType.IBeam => XC_xterm,
+            CursorType.Wait => XC_watch,
+            CursorType.Cross => XC_crosshair,
+            CursorType.UpArrow => XC_center_ptr,
+            CursorType.SizeNWSE => XC_top_left_corner,
+            CursorType.SizeNESW => XC_top_right_corner,
+            CursorType.SizeWE => XC_sb_h_double_arrow,
+            CursorType.SizeNS => XC_sb_v_double_arrow,
+            CursorType.SizeAll => XC_fleur,
+            CursorType.No => XC_X_cursor,
+            CursorType.Hand => XC_hand2,
+            CursorType.Help => XC_question_arrow,
+            _ => XC_left_ptr,
+        };
+
+        try
+        {
+            nint newCursor = NativeX11.XCreateFontCursor(Display, shape);
+            if (newCursor != 0)
+            {
+                NativeX11.XDefineCursor(Display, Handle, newCursor);
+
+                if (_currentCursor != 0)
+                {
+                    NativeX11.XFreeCursor(Display, _currentCursor);
+                }
+
+                _currentCursor = newCursor;
+                NativeX11.XFlush(Display);
+            }
         }
         catch
         {

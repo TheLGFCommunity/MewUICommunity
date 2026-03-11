@@ -377,6 +377,11 @@ internal sealed class MacOSWindowBackend : IWindowBackend
         }
     }
 
+    public void SetCursor(CursorType cursorType)
+    {
+        MacOSWindowInterop.SetCursor(cursorType);
+    }
+
     public void Dispose()
     {
         _window.ClearMouseOverState();
@@ -1556,6 +1561,18 @@ internal static unsafe class MacOSWindowInterop
     private static nint _sharedWindowDelegate;
     private static readonly Dictionary<nint, WeakReference<MacOSWindowBackend>> _windowCloseTargets = new();
 
+    // NSCursor
+    private static nint ClsNSCursor;
+    private static nint SelArrowCursor;
+    private static nint SelIBeamCursor;
+    private static nint SelCrosshairCursor;
+    private static nint SelPointingHandCursor;
+    private static nint SelResizeLeftRightCursor;
+    private static nint SelResizeUpDownCursor;
+    private static nint SelOperationNotAllowedCursor;
+    private static nint SelOpenHandCursor;
+    private static nint SelCursorSet;
+
     // NSWindowStyleMaskTitled | Closable | Miniaturizable | Resizable
     private const ulong DefaultStyleMask = 1ul | 2ul | 4ul | 8ul;
     private const int NSBackingStoreBuffered = 2;
@@ -1656,9 +1673,55 @@ internal static unsafe class MacOSWindowInterop
         ClsCAMetalLayer = ObjC.GetClass("CAMetalLayer");
         ClsNSObject = ObjC.GetClass("NSObject");
 
+        // NSCursor
+        ClsNSCursor = ObjC.GetClass("NSCursor");
+        SelArrowCursor = ObjC.Sel("arrowCursor");
+        SelIBeamCursor = ObjC.Sel("IBeamCursor");
+        SelCrosshairCursor = ObjC.Sel("crosshairCursor");
+        SelPointingHandCursor = ObjC.Sel("pointingHandCursor");
+        SelResizeLeftRightCursor = ObjC.Sel("resizeLeftRightCursor");
+        SelResizeUpDownCursor = ObjC.Sel("resizeUpDownCursor");
+        SelOperationNotAllowedCursor = ObjC.Sel("operationNotAllowedCursor");
+        SelOpenHandCursor = ObjC.Sel("openHandCursor");
+        SelCursorSet = ObjC.Sel("set");
+
         EnsureMetalLayerDelegate();
 
         _initialized = true;
+    }
+
+    public static void SetCursor(CursorType cursorType)
+    {
+        EnsureInitialized();
+        if (ClsNSCursor == 0 || SelCursorSet == 0)
+        {
+            return;
+        }
+
+        nint sel = cursorType switch
+        {
+            CursorType.IBeam => SelIBeamCursor,
+            CursorType.Cross => SelCrosshairCursor,
+            CursorType.Hand => SelPointingHandCursor,
+            CursorType.SizeWE => SelResizeLeftRightCursor,
+            CursorType.SizeNS => SelResizeUpDownCursor,
+            CursorType.No => SelOperationNotAllowedCursor,
+            CursorType.SizeAll => SelOpenHandCursor,
+            // macOS has no direct equivalents for SizeNWSE, SizeNESW, UpArrow, Wait, Help.
+            // Fall back to arrow cursor.
+            _ => SelArrowCursor,
+        };
+
+        if (sel == 0)
+        {
+            return;
+        }
+
+        nint cursor = ObjC.MsgSend_nint(ClsNSCursor, sel);
+        if (cursor != 0)
+        {
+            ObjC.MsgSend_void(cursor, SelCursorSet);
+        }
     }
 
     public static void SetWindowOpacity(nint window, double opacity)

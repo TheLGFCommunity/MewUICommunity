@@ -27,6 +27,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
     private bool _allowsTransparency;
 
     private readonly TextInputSuppression _textInputSuppression = new();
+    private nint _currentCursor;
 
     internal bool NeedsRender { get; private set; }
 
@@ -253,6 +254,16 @@ internal sealed class Win32WindowBackend : IWindowBackend
     {
         switch (msg)
         {
+            case WindowMessages.WM_SETCURSOR:
+                // If we have a custom cursor and the hit test is in the client area, apply it
+                // and return TRUE to prevent DefWindowProc from resetting the cursor.
+                if ((lParam & 0xFFFF) == 1 /* HTCLIENT */ && _currentCursor != 0)
+                {
+                    User32.SetCursor(_currentCursor);
+                    return 1;
+                }
+                return User32.DefWindowProc(Handle, msg, wParam, lParam);
+
             case WindowMessages.WM_NCHITTEST:
                 if (_allowsTransparency)
                 {
@@ -1443,6 +1454,30 @@ internal sealed class Win32WindowBackend : IWindowBackend
     public void EnsureTheme(bool isDark)
     {
         _titleBarThemeSync.ApplyTheme(isDark);
+    }
+
+    public void SetCursor(CursorType cursorType)
+    {
+        nint id = cursorType switch
+        {
+            CursorType.Arrow => SystemCursors.IDC_ARROW,
+            CursorType.IBeam => SystemCursors.IDC_IBEAM,
+            CursorType.Wait => SystemCursors.IDC_WAIT,
+            CursorType.Cross => SystemCursors.IDC_CROSS,
+            CursorType.UpArrow => SystemCursors.IDC_UPARROW,
+            CursorType.SizeNWSE => SystemCursors.IDC_SIZENWSE,
+            CursorType.SizeNESW => SystemCursors.IDC_SIZENESW,
+            CursorType.SizeWE => SystemCursors.IDC_SIZEWE,
+            CursorType.SizeNS => SystemCursors.IDC_SIZENS,
+            CursorType.SizeAll => SystemCursors.IDC_SIZEALL,
+            CursorType.No => SystemCursors.IDC_NO,
+            CursorType.Hand => SystemCursors.IDC_HAND,
+            CursorType.Help => SystemCursors.IDC_HELP,
+            _ => SystemCursors.IDC_ARROW,
+        };
+
+        _currentCursor = User32.LoadCursor(0, id);
+        User32.SetCursor(_currentCursor);
     }
 
     private uint GetDpiForWindow(nint handle) => Win32DpiApiResolver.GetDpiForWindow(handle);

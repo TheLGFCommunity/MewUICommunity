@@ -178,6 +178,15 @@ internal static partial class X11
     public static partial int XDeleteProperty(nint display, nint window, nint property);
 
     [LibraryImport(LibraryName)]
+    public static partial nint XCreateFontCursor(nint display, uint shape);
+
+    [LibraryImport(LibraryName)]
+    public static partial int XDefineCursor(nint display, nint window, nint cursor);
+
+    [LibraryImport(LibraryName)]
+    public static partial int XFreeCursor(nint display, nint cursor);
+
+    [LibraryImport(LibraryName)]
     public static partial int XTranslateCoordinates(
         nint display,
         nint src_w,
