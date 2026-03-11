@@ -63,6 +63,13 @@ internal enum D2D1_LAYER_OPTIONS : uint
     INITIALIZE_FOR_CLEARTYPE = 1
 }
 
+internal enum D2D1_LAYER_OPTIONS1 : uint
+{
+    NONE = 0,
+    INITIALIZE_FROM_BACKGROUND = 1,
+    IGNORE_ALPHA = 2
+}
+
 internal enum D2D1_FILL_MODE : uint
 {
     ALTERNATE = 0,

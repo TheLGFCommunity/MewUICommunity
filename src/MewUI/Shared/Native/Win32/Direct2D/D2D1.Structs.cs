@@ -122,6 +122,25 @@ internal readonly struct D2D1_LAYER_PARAMETERS(
 }
 
 [StructLayout(LayoutKind.Sequential)]
+internal readonly struct D2D1_LAYER_PARAMETERS1(
+    D2D1_RECT_F contentBounds,
+    nint geometricMask,
+    D2D1_ANTIALIAS_MODE maskAntialiasMode,
+    D2D1_MATRIX_3X2_F maskTransform,
+    float opacity,
+    nint opacityBrush,
+    D2D1_LAYER_OPTIONS1 layerOptions)
+{
+    public readonly D2D1_RECT_F contentBounds = contentBounds;
+    public readonly nint geometricMask = geometricMask;
+    public readonly D2D1_ANTIALIAS_MODE maskAntialiasMode = maskAntialiasMode;
+    public readonly D2D1_MATRIX_3X2_F maskTransform = maskTransform;
+    public readonly float opacity = opacity;
+    public readonly nint opacityBrush = opacityBrush;
+    public readonly D2D1_LAYER_OPTIONS1 layerOptions = layerOptions;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 internal readonly struct D2D1_ELLIPSE(D2D1_POINT_2F point, float radiusX, float radiusY)
 {
     public readonly D2D1_POINT_2F point = point;

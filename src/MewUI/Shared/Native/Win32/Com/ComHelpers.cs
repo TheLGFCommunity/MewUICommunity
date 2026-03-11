@@ -16,4 +16,18 @@ internal static unsafe class ComHelpers
         var release = (delegate* unmanaged[Stdcall]<nint, uint>)vtbl[2];
         return release(ptr);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int QueryInterface(nint ptr, in Guid riid, out nint ppvObject)
+    {
+        nint result = 0;
+        fixed (Guid* pIid = &riid)
+        {
+            var vtbl = *(nint**)ptr;
+            var qi = (delegate* unmanaged[Stdcall]<nint, Guid*, nint*, int>)vtbl[0];
+            int hr = qi(ptr, pIid, &result);
+            ppvObject = result;
+            return hr;
+        }
+    }
 }

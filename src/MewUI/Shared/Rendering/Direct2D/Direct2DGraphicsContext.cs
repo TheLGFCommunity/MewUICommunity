@@ -19,6 +19,7 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
     private readonly Action? _onRecreateTarget;
     private readonly bool _ownsRenderTarget;
     private readonly bool _useClearTypeText;
+    private readonly nint _deviceContext; // ID2D1DeviceContext* (0 if D2D 1.1 unavailable)
 
     private nint _renderTarget; // ID2D1RenderTarget*
     private readonly int _renderTargetGeneration;
@@ -65,6 +66,13 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
             : D2D1_TEXT_ANTIALIAS_MODE.CLEARTYPE;
         _useClearTypeText = textAa == D2D1_TEXT_ANTIALIAS_MODE.CLEARTYPE;
         D2D1VTable.SetTextAntialiasMode((ID2D1RenderTarget*)_renderTarget, textAa);
+
+        // Try QI for ID2D1DeviceContext (D2D 1.1, Windows 8+) to use IGNORE_ALPHA layers for ClearType.
+        if (_useClearTypeText &&
+            ComHelpers.QueryInterface(_renderTarget, D2D1.IID_ID2D1DeviceContext, out var dc) >= 0 && dc != 0)
+        {
+            _deviceContext = dc;
+        }
     }
 
     [Conditional("DEBUG")]
@@ -96,6 +104,9 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
             foreach (var (_, brush) in _solidBrushes)
                 ComHelpers.Release(brush);
             _solidBrushes.Clear();
+
+            if (_deviceContext != 0)
+                ComHelpers.Release(_deviceContext);
 
             if (_ownsRenderTarget && _renderTarget != 0)
                 ComHelpers.Release(_renderTarget);
@@ -171,16 +182,35 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
             return;
         }
 
-        var parameters = new D2D1_LAYER_PARAMETERS(
-            contentBounds: ToRectF(rect),
-            geometricMask: geometry,
-            maskAntialiasMode: D2D1_ANTIALIAS_MODE.PER_PRIMITIVE,
-            maskTransform: D2D1_MATRIX_3X2_F.Identity,
-            opacity: 1.0f,
-            opacityBrush: 0,
-            layerOptions: _useClearTypeText ? D2D1_LAYER_OPTIONS.INITIALIZE_FOR_CLEARTYPE : D2D1_LAYER_OPTIONS.NONE);
+        if (_deviceContext != 0)
+        {
+            // D2D 1.1: INITIALIZE_FROM_BACKGROUND copies the existing render target content into the layer,
+            // providing an opaque backing so ClearType works even without an explicit background fill.
+            var parameters1 = new D2D1_LAYER_PARAMETERS1(
+                contentBounds: ToRectF(rect),
+                geometricMask: geometry,
+                maskAntialiasMode: D2D1_ANTIALIAS_MODE.PER_PRIMITIVE,
+                maskTransform: D2D1_MATRIX_3X2_F.Identity,
+                opacity: 1.0f,
+                opacityBrush: 0,
+                layerOptions: D2D1_LAYER_OPTIONS1.INITIALIZE_FROM_BACKGROUND);
 
-        D2D1VTable.PushLayer((ID2D1RenderTarget*)_renderTarget, parameters, layer);
+            D2D1VTable.PushLayer((ID2D1DeviceContext*)_deviceContext, parameters1, layer);
+        }
+        else
+        {
+            var parameters = new D2D1_LAYER_PARAMETERS(
+                contentBounds: ToRectF(rect),
+                geometricMask: geometry,
+                maskAntialiasMode: D2D1_ANTIALIAS_MODE.PER_PRIMITIVE,
+                maskTransform: D2D1_MATRIX_3X2_F.Identity,
+                opacity: 1.0f,
+                opacityBrush: 0,
+                layerOptions: _useClearTypeText ? D2D1_LAYER_OPTIONS.INITIALIZE_FOR_CLEARTYPE : D2D1_LAYER_OPTIONS.NONE);
+
+            D2D1VTable.PushLayer((ID2D1RenderTarget*)_renderTarget, parameters, layer);
+        }
+
         _clipStack.Push(new ClipEntry(ClipKind.Layer, layer, geometry));
     }
 

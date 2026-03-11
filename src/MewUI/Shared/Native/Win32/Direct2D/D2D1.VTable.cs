@@ -41,11 +41,17 @@ internal unsafe struct ID2D1GeometrySink
     public void** lpVtbl;
 }
 
+internal unsafe struct ID2D1DeviceContext
+{
+    public void** lpVtbl;
+}
+
 internal static unsafe class D2D1VTable
 {
     private const int CreateHwndRenderTargetIndex = 14;
     private const int CreateDcRenderTargetIndex = 16;
     private const int BindDCIndex = 57; // First method after ID2D1RenderTarget
+    private const int DeviceContextPushLayerIndex = 86; // ID2D1DeviceContext::PushLayer (D2D1_LAYER_PARAMETERS1)
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CreateHwndRenderTarget(
@@ -169,6 +175,20 @@ internal static unsafe class D2D1VTable
         {
             var fn = (delegate* unmanaged[Stdcall]<ID2D1RenderTarget*, D2D1_LAYER_PARAMETERS*, nint, void>)(rt->lpVtbl[40]);
             fn(rt, pParams, layer);
+        }
+    }
+
+    /// <summary>
+    /// ID2D1DeviceContext::PushLayer (vtable index 86). Uses D2D1_LAYER_PARAMETERS1 with D2D1_LAYER_OPTIONS1.
+    /// The layer parameter can be 0 (NULL) for D2D 1.1 automatic layer management.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void PushLayer(ID2D1DeviceContext* dc, in D2D1_LAYER_PARAMETERS1 parameters, nint layer)
+    {
+        fixed (D2D1_LAYER_PARAMETERS1* pParams = &parameters)
+        {
+            var fn = (delegate* unmanaged[Stdcall]<ID2D1DeviceContext*, D2D1_LAYER_PARAMETERS1*, nint, void>)(dc->lpVtbl[DeviceContextPushLayerIndex]);
+            fn(dc, pParams, layer);
         }
     }
 
