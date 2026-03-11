@@ -669,7 +669,7 @@ public sealed class GridView : VirtualizedItemsBase, IFocusIntoViewHost, IVirtua
                 throw new InvalidOperationException("GridViewColumn.CellTemplate is required.");
             }
 
-            list.Add(new GridViewCore.ColumnDefinition(c.Header, c.Width, c.CellTemplate));
+            list.Add(new GridViewCore.ColumnDefinition(c.Header, c.Width, c.MinWidth, c.IsResizable, c.CellTemplate));
         }
 
         return list;
@@ -985,11 +985,22 @@ public sealed class GridView : VirtualizedItemsBase, IFocusIntoViewHost, IVirtua
 
     private sealed class HeaderRow : Panel
     {
+        private const double SeparatorHitWidth = 6;
+
         private readonly GridView _owner;
         private readonly List<Label> _cells = new();
         private double _horizontalOffset;
 
-        public HeaderRow(GridView owner) => _owner = owner;
+        // Column resize drag state
+        private int _resizeColumnIndex = -1;
+        private double _resizeDragStartX;
+        private double _resizeDragStartWidth;
+
+        public HeaderRow(GridView owner)
+        {
+            _owner = owner;
+            IsHitTestVisible = true;
+        }
 
         public double HorizontalOffset
         {
@@ -1077,6 +1088,85 @@ public sealed class GridView : VirtualizedItemsBase, IFocusIntoViewHost, IVirtua
 
                 context.DrawLine(new Point(x, bounds.Y + inset), new Point(x, bounds.Bottom - inset), stroke, 1, pixelSnap: true);
             }
+        }
+
+        /// <summary>
+        /// Returns the column index whose right-edge separator is near the given X position,
+        /// or -1 if no resizable separator is hit.
+        /// </summary>
+        private int HitTestSeparator(double localX)
+        {
+            var columns = _owner._core.Columns;
+            double x = -HorizontalOffset;
+            for (int i = 0; i < columns.Count; i++)
+            {
+                x += Math.Max(0, columns[i].Width);
+                if (Math.Abs(localX - x) <= SeparatorHitWidth / 2 && columns[i].IsResizable)
+                    return i;
+            }
+            return -1;
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (e.Handled || e.Button != MouseButton.Left) return;
+
+            var pos = e.GetPosition(this);
+            int col = HitTestSeparator(pos.X);
+            if (col < 0) return;
+
+            _resizeColumnIndex = col;
+            _resizeDragStartX = pos.X;
+            _resizeDragStartWidth = _owner._core.Columns[col].Width;
+            Cursor = CursorType.SizeWE;
+
+            if (_owner.FindVisualRoot() is Window window)
+                window.CaptureMouse(this);
+
+            e.Handled = true;
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+
+            var pos = e.GetPosition(this);
+
+            if (_resizeColumnIndex >= 0)
+            {
+                double delta = pos.X - _resizeDragStartX;
+                double newWidth = _resizeDragStartWidth + delta;
+
+                _owner._core.SetColumnWidth(_resizeColumnIndex, newWidth);
+                _owner._rebindVisibleOnNextRender = true;
+                _owner.InvalidateMeasure();
+                _owner.InvalidateVisual();
+                InvalidateArrange();
+                InvalidateVisual();
+                e.Handled = true;
+                return;
+            }
+
+            // Update cursor based on separator hover
+            Cursor = HitTestSeparator(pos.X) >= 0
+                ? CursorType.SizeWE
+                : CursorType.None;
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+
+            if (_resizeColumnIndex < 0) return;
+
+            _resizeColumnIndex = -1;
+            Cursor = CursorType.None;
+
+            if (_owner.FindVisualRoot() is Window window)
+                window.ReleaseMouseCapture();
+
+            e.Handled = true;
         }
     }
 
@@ -1297,7 +1387,6 @@ public sealed class GridView : VirtualizedItemsBase, IFocusIntoViewHost, IVirtua
         {
             private readonly Row _row;
             private bool _built;
-            private bool _selectionHooked;
 
             public Cell(Row row, TemplateContext context)
             {
@@ -1341,55 +1430,9 @@ public sealed class GridView : VirtualizedItemsBase, IFocusIntoViewHost, IVirtua
                 View = built;
                 _built = true;
 
-                HookSelection(View);
-            }
-
-            private static void TraverseVisualTree(Element? element, Action<Element> visitor)
-            {
-                if (element == null)
-                {
-                    return;
-                }
-
-                visitor(element);
-
-                if (element is Panel panel)
-                {
-                    foreach (var child in panel.Children)
-                    {
-                        TraverseVisualTree(child, visitor);
-                    }
-
-                    return;
-                }
-
-                if (element is HeaderedContentControl headered && headered.Content != null)
-                {
-                    TraverseVisualTree(headered.Content, visitor);
-                    return;
-                }
-
-                if (element is ContentControl contentControl && contentControl.Content != null)
-                {
-                    TraverseVisualTree(contentControl.Content, visitor);
-                }
-            }
-
-            private void HookSelection(UIElement view)
-            {
-                if (_selectionHooked)
-                {
-                    return;
-                }
-
-                _selectionHooked = true;
-                TraverseVisualTree(view, element =>
-                {
-                    if (element is UIElement ui)
-                    {
-                        ui.MouseDown += OnCellMouseDown;
-                    }
-                });
+                // MouseDown bubbles up the visual tree, so a single handler
+                // on the root view catches clicks on all child elements.
+                View.MouseDown += OnCellMouseDown;
             }
 
             private void OnCellMouseDown(MouseEventArgs e)
@@ -1416,7 +1459,7 @@ public sealed class GridView : VirtualizedItemsBase, IFocusIntoViewHost, IVirtua
 
     internal sealed class GridViewCore
     {
-        internal readonly record struct ColumnDefinition(string Header, double Width, IDataTemplate CellTemplate);
+        internal record struct ColumnDefinition(string Header, double Width, double MinWidth, bool IsResizable, IDataTemplate CellTemplate);
 
         private ISelectableItemsView _itemsView = ItemsView.EmptySelectable;
         private readonly List<ColumnDefinition> _columns = new();
@@ -1504,6 +1547,19 @@ public sealed class GridView : VirtualizedItemsBase, IFocusIntoViewHost, IVirtua
 
             _columnsVersion++;
             ColumnsChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Updates the width of a single column (e.g. during resize drag).
+        /// Does not fire ColumnsChanged; caller is responsible for layout invalidation.
+        /// </summary>
+        public void SetColumnWidth(int index, double width)
+        {
+            if ((uint)index >= (uint)_columns.Count) return;
+            var col = _columns[index];
+            col.Width = Math.Max(col.MinWidth, width);
+            _columns[index] = col;
+            _columnsVersion++;
         }
 
         private void HookItemsView(ISelectableItemsView view)
