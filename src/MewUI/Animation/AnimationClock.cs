@@ -70,14 +70,16 @@ public sealed class AnimationClock
     public double RawProgress => _rawProgress;
 
     /// <summary>
-    /// Raised each frame with the eased progress value.
+    /// Called each frame with the eased progress value.
+    /// Single-owner callback — no multicast, no cleanup needed.
     /// </summary>
-    public event Action<double>? Tick;
+    public Action<double>? TickCallback { get; set; }
 
     /// <summary>
-    /// Raised when the animation completes (after all repeats).
+    /// Called when the animation completes (after all repeats).
+    /// Single-owner callback — no multicast, no cleanup needed.
     /// </summary>
-    public event Action? Completed;
+    public Action? CompletedCallback { get; set; }
 
     /// <summary>
     /// Starts the animation from the beginning.
@@ -170,8 +172,8 @@ public sealed class AnimationClock
                 _isRunning = false;
                 AnimationManager.Instance.Unregister(this);
 
-                Tick?.Invoke(_progress);
-                Completed?.Invoke();
+                TickCallback?.Invoke(_progress);
+                CompletedCallback?.Invoke();
                 return;
             }
 
@@ -193,6 +195,6 @@ public sealed class AnimationClock
         double directedProgress = _isReversing ? 1.0 - _rawProgress : _rawProgress;
         _progress = EasingFunction(directedProgress);
 
-        Tick?.Invoke(_progress);
+        TickCallback?.Invoke(_progress);
     }
 }

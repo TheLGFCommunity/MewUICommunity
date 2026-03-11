@@ -61,6 +61,12 @@ public sealed class RenderLoopSettings
     }
 
     /// <summary>
+    /// Returns true when the render loop should run continuously:
+    /// either VSync is disabled or the mode is explicitly set to <see cref="RenderLoopMode.Continuous"/>.
+    /// </summary>
+    public bool IsContinuous => !VSyncEnabled || Mode == RenderLoopMode.Continuous;
+
+    /// <summary>
     /// Convenience helper to toggle <see cref="RenderLoopMode.Continuous"/>.
     /// </summary>
     public void SetContinuous(bool enabled)

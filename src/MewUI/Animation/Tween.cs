@@ -53,7 +53,7 @@ public sealed class Tween<T>
         ArgumentNullException.ThrowIfNull(clock);
         Unbind();
         _clock = clock;
-        _clock.Tick += OnClockTick;
+        _clock.TickCallback = OnClockTick;
         return this;
     }
 
@@ -67,7 +67,7 @@ public sealed class Tween<T>
             return;
         }
 
-        _clock.Tick -= OnClockTick;
+        _clock.TickCallback = null;
         _clock = null;
     }
 

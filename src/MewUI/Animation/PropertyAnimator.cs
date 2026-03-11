@@ -69,7 +69,7 @@ internal sealed class PropertyAnimator
             state = new AnimState();
             _states[id] = state;
             state.Clock = new AnimationClock(duration, easing);
-            state.Clock.Tick += progress => OnTick(id, progress);
+            state.Clock.TickCallback = progress => OnTick(id, progress);
         }
         else
         {
