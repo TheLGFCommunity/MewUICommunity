@@ -125,7 +125,7 @@ internal sealed unsafe class WglOpenGLWindowResources : IOpenGLWindowResources
             string? vendor = GL.GetVendorString();
             string? renderer = GL.GetRendererString();
             string? version = GL.GetVersionString();
-            DiagLog.WriteAlways(
+            DiagLog.Write(
                 $"[WGL] hwnd=0x{hwnd.ToInt64():X} msaaPreferred={preferredSamples} choseMsaaPf={choseMultisample} depthBits={options.DepthBits} stencilBits={options.StencilBits} " +
                 $"pfd(color={pfd.cColorBits} alpha={pfd.cAlphaBits} depth={pfd.cDepthBits} stencil={pfd.cStencilBits}) " +
                 $"gl(samplesBuf={sampleBuffers} samples={samples}) '{vendor}' '{renderer}' '{version}'");

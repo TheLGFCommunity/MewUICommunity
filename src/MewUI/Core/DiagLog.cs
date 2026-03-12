@@ -13,7 +13,7 @@ public static class DiagLog
     /// <summary>
     /// Gets whether diagnostics logging is enabled.
     /// </summary>
-    public static bool Enabled => true;
+    public static bool Enabled { get; set; }
 
     /// <summary>
     /// Writes a diagnostic message in DEBUG builds only.
@@ -40,30 +40,7 @@ public static class DiagLog
         }
     }
 
-    /// <summary>
-    /// Writes a diagnostic message regardless of build configuration.
-    /// </summary>
-    public static void WriteAlways(string message)
-    {
-        if (!Enabled)
-        {
-            return;
-        }
-
-        try
-        {
-            lock (_sync)
-            {
-                Debug.WriteLine(message);
-                File.AppendAllText(WritePath, $"{DateTime.UtcNow:O} {message}{Environment.NewLine}");
-            }
-        }
-        catch
-        {
-            // best-effort
-        }
-    }
-
+  
     /// <summary>
     /// Writes a snapshot of process and GC memory statistics.
     /// </summary>
@@ -89,7 +66,7 @@ public static class DiagLog
                 // best-effort
             }
 
-            WriteAlways(
+            Write(
                 $"[Mem] {tag} pid={p.Id} private={FormatBytes(p.PrivateMemorySize64)} ws={FormatBytes(p.WorkingSet64)} " +
                 $"vm={FormatBytes(p.VirtualMemorySize64)} managed={FormatBytes(managed)} heap={FormatBytes(heap)}");
         }
