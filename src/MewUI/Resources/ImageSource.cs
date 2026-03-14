@@ -146,6 +146,11 @@ public sealed class ImageSource : IImageSource
         return false;
     }
 
+    public void EnsureDecode()
+    {
+        TryEnsureDecoded(out _);
+    }
+
     private bool TryEnsureDecoded(out StaticPixelBufferSource pixelSource)
     {
         lock (_decodeLock)
