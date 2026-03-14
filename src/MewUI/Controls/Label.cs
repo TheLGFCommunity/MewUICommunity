@@ -18,7 +18,7 @@ public partial class Label : Control
             MewPropertyOptions.AffectsRender);
 
     public static readonly MewProperty<TextAlignment> VerticalTextAlignmentProperty =
-        MewProperty<TextAlignment>.Register<Label>(nameof(VerticalTextAlignment), TextAlignment.Top,
+        MewProperty<TextAlignment>.Register<Label>(nameof(VerticalTextAlignment), TextAlignment.Center,
             MewPropertyOptions.AffectsRender);
 
     public static readonly MewProperty<TextWrapping> TextWrappingProperty =

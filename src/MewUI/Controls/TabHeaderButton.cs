@@ -8,6 +8,10 @@ namespace Aprillz.MewUI.Controls;
 /// </summary>
 internal sealed class TabHeaderButton : ContentControl
 {
+    public static readonly MewProperty<bool> IsSelectedProperty =
+        MewProperty<bool>.Register<TabHeaderButton>(nameof(IsSelected), false, MewPropertyOptions.AffectsRender,
+            static (self, _, _) => self.RefreshVisualState());
+
     /// <summary>
     /// Gets or sets the tab index this header represents.
     /// </summary>
@@ -16,12 +20,11 @@ internal sealed class TabHeaderButton : ContentControl
     /// <summary>
     /// Gets or sets whether this tab is currently selected.
     /// </summary>
-    public bool IsSelected { get; set; }
-
-    /// <summary>
-    /// Gets or sets whether the associated tab is enabled for interaction.
-    /// </summary>
-    public bool IsTabEnabled { get; set; } = true;
+    public bool IsSelected
+    {
+        get => GetValue(IsSelectedProperty);
+        set => SetValue(IsSelectedProperty, value);
+    }
 
     /// <summary>
     /// Called when the header is clicked (tab selection request).
@@ -33,11 +36,36 @@ internal sealed class TabHeaderButton : ContentControl
     {
     }
 
+    private void RefreshVisualState()
+    {
+        EnsureStyleResolved();
+        ResolveVisualState();
+        InvalidateVisual();
+    }
+
+    internal void RefreshOwnerState()
+    {
+        RefreshVisualState();
+    }
+
+    private TabControl? FindOwnerTabControl()
+    {
+        for (Element? current = Parent; current != null; current = current.Parent)
+        {
+            if (current is TabControl tabControl)
+            {
+                return tabControl;
+            }
+        }
+
+        return null;
+    }
+
     protected override VisualState ComputeVisualState()
     {
         var state = base.ComputeVisualState();
-        if (!IsTabEnabled)
-            state = state with { Flags = state.Flags & ~VisualStateFlags.Enabled };
+        if (FindOwnerTabControl() is TabControl tabControl && tabControl.IsFocusWithin)
+            state = state with { Flags = state.Flags | VisualStateFlags.Focused };
         if (IsSelected)
             state = state with { Flags = state.Flags | VisualStateFlags.Selected };
         return state;
@@ -51,7 +79,7 @@ internal sealed class TabHeaderButton : ContentControl
     {
         // Match WPF semantics: disabled tabs should not participate in hit testing,
         // otherwise they keep receiving hover/mouse-over changes and triggering redraw.
-        if (!IsVisible || !IsHitTestVisible || !IsEffectivelyEnabled || !IsTabEnabled)
+        if (!IsVisible || !IsHitTestVisible || !IsEffectivelyEnabled)
         {
             return null;
         }
@@ -77,23 +105,13 @@ internal sealed class TabHeaderButton : ContentControl
         double radiusDip = Math.Max(0, CornerRadius);
         var metrics = GetBorderRenderMetrics(Bounds, radiusDip);
         var bounds = metrics.Bounds;
-        var radius = metrics.CornerRadius;
-
-        var host = Parent?.Parent as TabControl;
-        var tabBg = host?.GetTabBackground(Theme, IsSelected) ?? (IsSelected ? Theme.Palette.ControlBackground : Theme.Palette.ButtonFace);
-        var outline = host?.GetOutlineColor(Theme) ?? Theme.Palette.ControlBorder;
-
-        var state = CurrentVisualState;
-
-        Color bg = IsSelected ? tabBg : PickButtonBackground(state, tabBg);
-
-        var baseBorder = IsSelected && state.IsEnabled ? outline : Theme.Palette.ControlBorder;
-        var border = PickAccentBorder(Theme, baseBorder, state, hoverMix: 0.4);
+        var bg = GetValue(BackgroundProperty);
+        var border = GetValue(BorderBrushProperty);
 
         // Top-only rounding via clipping:
         // Draw a taller rounded-rect, then clip to the real bounds so the bottom corners are clipped away.
         // This keeps the header looking like VS-style "document tabs" without requiring path geometry support.
-        var rounded = new Rect(bounds.X, bounds.Y, bounds.Width, bounds.Height + radius + 4);
+        var rounded = new Rect(bounds.X, bounds.Y, bounds.Width, bounds.Height + metrics.CornerRadius + 4);
 
         // Use fill-based border (outer + inner) to avoid stroke centering being clipped by the tight clip.
         DrawBackgroundAndBorder(context, rounded, bg, border, radiusDip);
@@ -143,7 +161,7 @@ internal sealed class TabHeaderButton : ContentControl
             return;
         }
 
-        if (e.Button == MouseButton.Left && IsEffectivelyEnabled && IsTabEnabled)
+        if (e.Button == MouseButton.Left && IsEffectivelyEnabled)
         {
             SetPressed(true);
 
@@ -153,6 +171,7 @@ internal sealed class TabHeaderButton : ContentControl
                 window.CaptureMouse(this);
             }
 
+            ClickedCallback?.Invoke(Index);
             e.Handled = true;
         }
     }
@@ -171,11 +190,6 @@ internal sealed class TabHeaderButton : ContentControl
                 window.ReleaseMouseCapture();
             }
 
-            if (IsEffectivelyEnabled && IsTabEnabled && Bounds.Contains(e.Position))
-            {
-                ClickedCallback?.Invoke(Index);
-            }
-
             e.Handled = true;
         }
     }
@@ -189,7 +203,7 @@ internal sealed class TabHeaderButton : ContentControl
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (e.Handled || !IsEffectivelyEnabled || !IsTabEnabled)
+        if (e.Handled || !IsEffectivelyEnabled)
         {
             return;
         }
@@ -204,7 +218,7 @@ internal sealed class TabHeaderButton : ContentControl
     protected override void OnKeyUp(KeyEventArgs e)
     {
         base.OnKeyUp(e);
-        if (e.Handled || !IsEffectivelyEnabled || !IsTabEnabled)
+        if (e.Handled || !IsEffectivelyEnabled)
         {
             return;
         }

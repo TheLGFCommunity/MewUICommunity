@@ -8,6 +8,9 @@ namespace Aprillz.MewUI.Controls;
 /// </summary>
 public sealed class ToggleSwitch : ToggleBase
 {
+    public static readonly MewProperty<Color> ThumbBrushProperty =
+        MewProperty<Color>.Register<ToggleSwitch>(nameof(ThumbBrush), default, MewPropertyOptions.AffectsRender);
+
     private TextMeasureCache _textMeasureCache;
 
     static ToggleSwitch()
@@ -16,6 +19,12 @@ public sealed class ToggleSwitch : ToggleBase
     }
 
     private const double spacing = 8;
+
+    public Color ThumbBrush
+    {
+        get => GetValue(ThumbBrushProperty);
+        set => SetValue(ThumbBrushProperty, value);
+    }
 
     protected override void OnThemeChanged(Theme oldTheme, Theme newTheme)
     {
@@ -66,8 +75,8 @@ public sealed class ToggleSwitch : ToggleBase
         double borderInset = GetBorderVisualInset();
 
         var trackFill = GetValue(BackgroundProperty);
-        var thumbFill = GetValue(ForegroundProperty);
         var borderColor = GetValue(BorderBrushProperty);
+        var thumbFill = ThumbBrush;
 
         if (IsChecked)
         {

@@ -12,6 +12,19 @@ public partial record class Theme
         Transition.Create(Control.ForegroundProperty),
     ];
 
+    private static readonly Transition[] SliderColorTransitions =
+    [
+        ..ColorTransitions,
+        Transition.Create(Slider.ThumbBrushProperty),
+        Transition.Create(Slider.ThumbBorderBrushProperty),
+    ];
+
+    private static readonly Transition[] ToggleSwitchColorTransitions =
+    [
+        ..ColorTransitions,
+        Transition.Create(ToggleSwitch.ThumbBrushProperty),
+    ];
+
     private Dictionary<Type, Style>? _styles;
 
     // Tracks which Palette instance _styles was built from.
@@ -87,9 +100,7 @@ public partial record class Theme
             Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
             Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness)));
         
-        Register(styles, CreateControlBasedStyle(typeof(ProgressBar),
-            Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
-            Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness)));
+        Register(styles, CreateProgressBarStyle());
         
         Register(styles, CreateSliderStyle());
 
@@ -121,13 +132,16 @@ public partial record class Theme
             Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness)));
 
         // Containers
+        Register(styles, CreateExpanderStyle());
         Register(styles, CreateContainerStyle(typeof(GroupBox)));
         
-        Register(styles, CreateContainerStyle(typeof(TabControl)));
+        Register(styles, CreateTabControlStyle());
         
         Register(styles, CreateWindowStyle());
 
         // Misc
+        Register(styles, CreateBorderStyle());
+
         Register(styles, CreateSplitterThumbStyle());
         
         Register(styles, CreateScrollBarStyle());
@@ -199,6 +213,18 @@ public partial record class Theme
                         Setter.Create(Control.ForegroundProperty, p.DisabledText),
                     ],
                 },
+            ],
+        };
+    }
+
+    private Style CreateBorderStyle()
+    {
+        return new Style(typeof(Border))
+        {
+            Setters =
+            [
+                Setter.Create(Control.CornerRadiusProperty, 0.0),
+                Setter.Create(Control.BorderThicknessProperty, 0.0),
             ],
         };
     }
@@ -304,12 +330,13 @@ public partial record class Theme
 
         return new Style(typeof(ToggleSwitch))
         {
-            Transitions = ColorTransitions,
+            Transitions = ToggleSwitchColorTransitions,
             Setters =
             [
                 Setter.Create(Control.BackgroundProperty, p.ButtonFace),
                 Setter.Create(Control.ForegroundProperty, p.WindowText),
                 Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
+                Setter.Create(ToggleSwitch.ThumbBrushProperty, p.WindowText),
                 Setter.Create(FrameworkElement.PaddingProperty, new Thickness(8, 4, 8, 4)),
                 Setter.Create(FrameworkElement.MinHeightProperty, Metrics.BaseControlHeight),
                 Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
@@ -324,7 +351,7 @@ public partial record class Theme
                     Setters =
                     [
                         Setter.Create(Control.BackgroundProperty, p.Accent),
-                        Setter.Create(Control.ForegroundProperty, p.AccentText),
+                        Setter.Create(ToggleSwitch.ThumbBrushProperty, p.AccentText),
                     ],
                 },
                 // Hot (unchecked)
@@ -362,13 +389,13 @@ public partial record class Theme
                 {
                     Match = VisualStateFlags.Focused,
                     Exclude = VisualStateFlags.Checked,
-                    Setters = [Setter.Create(Control.ForegroundProperty, p.WindowText.Lerp(p.Focus, 0.3))],
+                    Setters = [Setter.Create(Control.BorderBrushProperty, p.Accent)],
                 },
                 // Focused + Checked
                 new StateTrigger
                 {
                     Match = VisualStateFlags.Focused | VisualStateFlags.Checked,
-                    Setters = [Setter.Create(Control.ForegroundProperty, p.AccentText.Lerp(p.Focus, 0.3))],
+                    Setters = [Setter.Create(Control.BorderBrushProperty, p.Accent)],
                 },
                 // Disabled
                 new StateTrigger
@@ -379,6 +406,7 @@ public partial record class Theme
                     [
                         Setter.Create(Control.BackgroundProperty, p.ButtonDisabledBackground),
                         Setter.Create(Control.ForegroundProperty, p.DisabledText),
+                        Setter.Create(ToggleSwitch.ThumbBrushProperty, p.DisabledText),
                     ],
                 },
                 // Disabled + Checked
@@ -389,7 +417,7 @@ public partial record class Theme
                     Setters =
                     [
                         Setter.Create(Control.BackgroundProperty, p.DisabledAccent),
-                        Setter.Create(Control.ForegroundProperty, p.DisabledControlBackground),
+                        Setter.Create(ToggleSwitch.ThumbBrushProperty, p.DisabledControlBackground),
                     ],
                 },
             ],
@@ -402,11 +430,118 @@ public partial record class Theme
         // No triggers — thumb uses PickAccentBorder with its own thumbState (includes _isDragging).
         return new Style(typeof(Slider))
         {
+            Transitions = SliderColorTransitions,
             Setters =
             [
+                Setter.Create(Control.BackgroundProperty, p.ControlBackground),
+                Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
+                Setter.Create(Slider.ThumbBrushProperty, p.ControlBackground),
+                Setter.Create(Slider.ThumbBorderBrushProperty, p.ControlBorder),
+                Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
+                Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness),
+            ],
+            Triggers =
+            [
+                new StateTrigger
+                {
+                    Match = VisualStateFlags.Hot,
+                    Setters = [Setter.Create(Slider.ThumbBorderBrushProperty, Color.Composite(p.ControlBorder, p.AccentBorderHotOverlay))],
+                },
+                new StateTrigger
+                {
+                    Match = VisualStateFlags.Focused,
+                    Setters = [Setter.Create(Slider.ThumbBorderBrushProperty, p.Accent)],
+                },
+                new StateTrigger
+                {
+                    Match = VisualStateFlags.Pressed,
+                    Setters = [Setter.Create(Slider.ThumbBorderBrushProperty, p.Accent)],
+                },
+                new StateTrigger
+                {
+                    Match = VisualStateFlags.None,
+                    Exclude = VisualStateFlags.Enabled,
+                    Setters =
+                    [
+                        Setter.Create(Control.BackgroundProperty, p.ButtonDisabledBackground),
+                        Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
+                        Setter.Create(Slider.ThumbBrushProperty, p.DisabledControlBackground),
+                        Setter.Create(Slider.ThumbBorderBrushProperty, p.ControlBorder),
+                    ],
+                },
+            ],
+        };
+    }
+
+    private Style CreateProgressBarStyle()
+    {
+        var p = Palette;
+        return new Style(typeof(ProgressBar))
+        {
+            Setters =
+            [
+                Setter.Create(Control.BackgroundProperty, p.ControlBackground),
                 Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
                 Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
                 Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness),
+            ],
+        };
+    }
+
+    private Style CreateExpanderStyle()
+    {
+        var p = Palette;
+        var borderHot = Color.Composite(p.ControlBorder, p.AccentBorderHotOverlay);
+
+        return new Style(typeof(Expander))
+        {
+            Setters =
+            [
+                Setter.Create(Control.BackgroundProperty, Color.Transparent),
+                Setter.Create(Control.BorderBrushProperty, Color.Transparent),
+                Setter.Create(Control.ForegroundProperty, p.WindowText),
+                Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
+                Setter.Create(Control.BorderThicknessProperty, 0.0),
+            ],
+            Triggers =
+            [
+                new StateTrigger
+                {
+                    Match = VisualStateFlags.Focused,
+                    Setters = [Setter.Create(Control.BorderBrushProperty, p.Accent)],
+                },
+                new StateTrigger
+                {
+                    Match = VisualStateFlags.None,
+                    Exclude = VisualStateFlags.Enabled,
+                    Setters = [Setter.Create(Control.ForegroundProperty, p.DisabledText)],
+                },
+            ],
+        };
+    }
+
+    private Style CreateTabControlStyle()
+    {
+        var p = Palette;
+        var activeTabBorder = p.ControlBorder.Lerp(p.Accent, 0.5);
+        var tabContentBackground = p.ContainerBackground;
+        return new Style(typeof(TabControl))
+        {
+            Setters =
+            [
+                Setter.Create(Control.BackgroundProperty, tabContentBackground),
+                Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
+                Setter.Create(FrameworkElement.PaddingProperty, new Thickness(8)),
+                Setter.Create(Control.CornerRadiusProperty, Metrics.ControlCornerRadius),
+                Setter.Create(Control.BorderThicknessProperty, Metrics.ControlBorderThickness),
+            ],
+            Triggers =
+            [
+                new StateTrigger
+                {
+                    Match = VisualStateFlags.Focused,
+                    Setters = [Setter.Create(Control.BorderBrushProperty, activeTabBorder)],
+                },
             ],
         };
     }
@@ -702,6 +837,8 @@ public partial record class Theme
     {
         var p = Palette;
         var borderHot = Color.Composite(p.ControlBorder, p.AccentBorderHotOverlay);
+        var activeTabBorder = p.ControlBorder.Lerp(p.Accent, 0.5);
+        var tabContentBackground = p.ContainerBackground;
 
         return new Style(typeof(TabHeaderButton))
         {
@@ -731,10 +868,36 @@ public partial record class Theme
                 new StateTrigger
                 {
                     Match = VisualStateFlags.Selected,
+                    Setters = [Setter.Create(Control.BackgroundProperty, tabContentBackground)],
+                },
+                new StateTrigger
+                {
+                    Match = VisualStateFlags.Selected,
+                    Exclude = VisualStateFlags.Focused,
                     Setters =
                     [
-                        Setter.Create(Control.BackgroundProperty, p.ControlBackground),
                         Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
+                        Setter.Create(Control.ForegroundProperty, p.WindowText),
+                    ],
+                },
+                new StateTrigger
+                {
+                    Match = VisualStateFlags.Selected | VisualStateFlags.Focused,
+                    Setters =
+                    [
+                        Setter.Create(Control.BorderBrushProperty, activeTabBorder),
+                        Setter.Create(Control.ForegroundProperty, p.WindowText),
+                    ],
+                },
+                new StateTrigger
+                {
+                    Match = VisualStateFlags.Selected,
+                    Exclude = VisualStateFlags.Enabled,
+                    Setters =
+                    [
+                        Setter.Create(Control.BackgroundProperty, tabContentBackground),
+                        Setter.Create(Control.BorderBrushProperty, p.ControlBorder),
+                        Setter.Create(Control.ForegroundProperty, p.DisabledText),
                     ],
                 },
             ],
