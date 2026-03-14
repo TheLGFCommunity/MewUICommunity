@@ -257,7 +257,7 @@ public abstract class Control : FrameworkElement
     /// Sets the style for this control.
     /// </summary>
     /// <summary>
-    /// Forces the next <see cref="Render"/> pass to snap style values immediately
+    /// Forces the next <see cref="OnRender"/> pass to snap style values immediately
     /// instead of animating from the cached <see cref="_visualState"/>.
     /// Used when a virtualization-pinned container re-enters the visible range
     /// and its cached visual state may be stale (e.g. still has Focused/Active

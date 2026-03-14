@@ -59,7 +59,7 @@ internal sealed class DataObject : IDataObject
     public bool Contains(string format)
         => !string.IsNullOrWhiteSpace(format) && _data.ContainsKey(format);
 
-    public bool TryGetData<T>(string format, out T? value)
+    public bool TryGetData<T>(string format, [NotNullWhen(true)]out T? value)
     {
         if (!string.IsNullOrWhiteSpace(format) &&
             _data.TryGetValue(format, out var raw) &&

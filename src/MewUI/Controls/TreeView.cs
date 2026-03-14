@@ -388,11 +388,7 @@ public sealed class TreeView : Control, IVisualTreeHost, IFocusIntoViewHost, IVi
         return TryHitRow(position, out index, out _);
     }
 
-    /// <summary>
-    /// Called when the theme changes.
-    /// </summary>
-    /// <param name="oldTheme">The previous theme.</param>
-    /// <param name="newTheme">The new theme.</param>
+    /// <inheritdoc />
     protected override void OnEnabledChanged()
     {
         base.OnEnabledChanged();
