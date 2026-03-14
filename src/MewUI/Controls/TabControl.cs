@@ -333,6 +333,11 @@ public sealed class TabControl : Control
 
     protected override void OnRender(IGraphicsContext context)
     {
+        // Header must render BEFORE content background so the background
+        // paints over the header's bottom edge, visually connecting the
+        // selected tab to the content area.
+        _headerStrip.Render(context);
+
         var bounds = GetSnappedBorderBounds(Bounds);
         var borderInset = GetBorderVisualInset();
         var inner = bounds.Deflate(new Thickness(borderInset));
@@ -370,7 +375,6 @@ public sealed class TabControl : Control
 
     protected override void RenderSubtree(IGraphicsContext context)
     {
-        _headerStrip.Render(context);
         _contentHost.Render(context);
     }
 
