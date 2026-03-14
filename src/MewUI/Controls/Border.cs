@@ -85,32 +85,39 @@ public sealed class Border : Control, IVisualTreeHost
 
     protected override void OnRender(IGraphicsContext context)
     {
-        var radius = Math.Max(0, CornerRadius);
+        DrawBackgroundAndBorder(context, Bounds, Background, BorderBrush, Math.Max(0, CornerRadius));
+    }
 
-        DrawBackgroundAndBorder(context, Bounds, Background, BorderBrush, radius);
+    protected override void RenderSubtree(IGraphicsContext context)
+    {
+        if (Child == null) return;
 
-        if (Child != null)
+        if (ClipToBounds)
         {
+            var radius = Math.Max(0, CornerRadius);
             var border = BorderThickness > 0 ? new Thickness(BorderThickness) : Thickness.Zero;
             var inner = GetSnappedBorderBounds(Bounds).Deflate(border).Deflate(Padding);
             var dpiScale = GetDpi() / 96.0;
-            if (dpiScale <= 0)
-            {
-                dpiScale = 1.0;
-            }
+            if (dpiScale <= 0) dpiScale = 1.0;
 
-            if (ClipToBounds)
+            context.Save();
+            var clipRect = LayoutRounding.MakeClipRect(inner, dpiScale);
+            if (radius > 0)
             {
-                context.Save();
-                context.SetClip(LayoutRounding.MakeClipRect(inner, dpiScale));
+                var clipRadius = Math.Max(0, radius - BorderThickness);
+                context.SetClipRoundedRect(clipRect, clipRadius, clipRadius);
+            }
+            else
+            {
+                context.SetClip(clipRect);
             }
 
             Child.Render(context);
-
-            if (ClipToBounds)
-            {
-                context.Restore();
-            }
+            context.Restore();
+        }
+        else
+        {
+            Child.Render(context);
         }
     }
 

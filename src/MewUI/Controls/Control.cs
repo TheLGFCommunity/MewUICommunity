@@ -340,16 +340,8 @@ public abstract class Control : FrameworkElement
         SetStyle(resolved);
     }
 
-    /// <summary>
-    /// Rendering pipeline override. Computes visual state, resolves style values, then renders.
-    /// </summary>
-    public override void Render(IGraphicsContext context)
+    protected sealed override void ResolveVisualState()
     {
-        if (!IsVisible)
-        {
-            return;
-        }
-
         var newState = ComputeVisualState();
         var oldState = _visualState;
 
@@ -364,8 +356,21 @@ public abstract class Control : FrameworkElement
             ApplyStyleValues(newState.Flags, snap);
             OnVisualStateChanged(oldState, newState);
         }
+    }
 
-        OnRender(context);
+    protected override void OnRender(IGraphicsContext context)
+    {
+        base.OnRender(context);
+
+        var bg = GetValue(BackgroundProperty);
+        var border = GetValue(BorderBrushProperty);
+
+        if (bg.A == 0 && (BorderThickness <= 0 || border.A == 0))
+        {
+            return;
+        }
+
+        DrawBackgroundAndBorder(context, Bounds, bg, border, CornerRadius);
     }
 
     /// <summary>
@@ -692,20 +697,6 @@ public abstract class Control : FrameworkElement
         }
     }
 
-    protected override void OnRender(IGraphicsContext context)
-    {
-        base.OnRender(context);
-
-        var bg = GetValue(BackgroundProperty);
-        var border = GetValue(BorderBrushProperty);
-
-        if (bg.A == 0 && (BorderThickness <= 0 || border.A == 0))
-        {
-            return;
-        }
-
-        DrawBackgroundAndBorder(context, Bounds, bg, border, CornerRadius);
-    }
 
     protected override void OnMouseEnter()
     {

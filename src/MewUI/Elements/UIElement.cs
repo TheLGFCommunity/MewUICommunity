@@ -318,21 +318,34 @@ public abstract partial class UIElement : Element
 
     protected virtual Size ArrangeOverride(Size finalSize) => finalSize;
 
-    public override void Render(IGraphicsContext context)
+    public sealed override void Render(IGraphicsContext context)
     {
         if (!IsVisible)
         {
             return;
         }
 
+        ResolveVisualState();
         OnRender(context);
+        RenderSubtree(context);
     }
 
     /// <summary>
-    /// Renders the element.
+    /// Called before <see cref="OnRender"/> to resolve visual state (e.g. style triggers, state transitions).
+    /// </summary>
+    protected virtual void ResolveVisualState() { }
+
+    /// <summary>
+    /// Renders the element's own visuals (background, border, text, etc.).
     /// </summary>
     /// <param name="context">The graphics context.</param>
-    protected virtual void OnRender(IGraphicsContext context) { }
+    protected override void OnRender(IGraphicsContext context) { }
+
+    /// <summary>
+    /// Renders child elements and internal visual parts (content, chrome, scrollbars, etc.).
+    /// Called after <see cref="OnRender"/>.
+    /// </summary>
+    protected virtual void RenderSubtree(IGraphicsContext context) { }
 
     /// <summary>
     /// Performs hit testing to find the element at the specified point.

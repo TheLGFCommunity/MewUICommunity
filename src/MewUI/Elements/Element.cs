@@ -213,11 +213,17 @@ public abstract class Element : MewObject
 
     /// <summary>
     /// Renders the element to the graphics context.
+    /// Subclasses must override <see cref="OnRender"/> instead of this method.
     /// </summary>
     public virtual void Render(IGraphicsContext context)
     {
-        // Base implementation does nothing
+        OnRender(context);
     }
+
+    /// <summary>
+    /// When overridden, performs the actual rendering.
+    /// </summary>
+    protected virtual void OnRender(IGraphicsContext context) { }
 
     /// <summary>
     /// Finds the visual root of this element (typically a Window).

@@ -104,9 +104,9 @@ public class HeaderedContentControl : ContentControl
         }
     }
 
-    public override void Render(IGraphicsContext context)
+    protected override void RenderSubtree(IGraphicsContext context)
     {
-        base.Render(context);
+        base.RenderSubtree(context);
         Header?.Render(context);
     }
 

@@ -219,10 +219,8 @@ public sealed class NumericUpDown : RangeBase, IVisualTreeHost
         }
     }
 
-    public override void Render(IGraphicsContext context)
+    protected override void RenderSubtree(IGraphicsContext context)
     {
-        base.Render(context);
-
         if (EditMode)
         {
             _textBox.Render(context);

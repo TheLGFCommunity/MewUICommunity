@@ -333,7 +333,6 @@ public sealed class TabControl : Control
 
     protected override void OnRender(IGraphicsContext context)
     {
-        
         var bounds = GetSnappedBorderBounds(Bounds);
         var borderInset = GetBorderVisualInset();
         var inner = bounds.Deflate(new Thickness(borderInset));
@@ -344,7 +343,6 @@ public sealed class TabControl : Control
             headerH = _headerStrip.DesiredSize.Height;
         }
 
-        var stripBg = GetTabStripBackground(Theme);
         var contentBg = GetValue(BackgroundProperty);
 
         var headerRect = new Rect(inner.X, inner.Y, inner.Width, Math.Max(0, headerH));
@@ -355,9 +353,7 @@ public sealed class TabControl : Control
             inner.Width,
             Math.Max(0, inner.Height - headerRect.Height));
 
-
-        var outline = GetOutlineColor(Theme);
-
+        var outline = BorderBrush;
 
         if (contentRect.Height <= 0)
         {
@@ -372,10 +368,9 @@ public sealed class TabControl : Control
         }
     }
 
-    public override void Render(IGraphicsContext context)
+    protected override void RenderSubtree(IGraphicsContext context)
     {
         _headerStrip.Render(context);
-        base.Render(context);
         _contentHost.Render(context);
     }
 
@@ -412,7 +407,7 @@ public sealed class TabControl : Control
             {
                 Index = i,
                 IsSelected = i == SelectedIndex,
-                IsTabEnabled = tab.IsEnabled,
+                IsEnabled = tab.IsEnabled,
                 Content = tab.Header!,
             };
             header.ClickedCallback = idx =>
@@ -469,7 +464,7 @@ public sealed class TabControl : Control
             if (_headerStrip[i] is TabHeaderButton btn)
             {
                 btn.IsSelected = i == SelectedIndex;
-                btn.IsTabEnabled = i >= 0 && i < _tabs.Count && _tabs[i].IsEnabled;
+                btn.IsEnabled = i >= 0 && i < _tabs.Count && _tabs[i].IsEnabled;
                 btn.InvalidateVisual();
             }
         }
@@ -569,19 +564,24 @@ public sealed class TabControl : Control
         }
     }
 
-    private bool HasFocusWithin() => IsFocusWithin;
-
-    internal Color GetOutlineColor(Theme theme)
+    protected override void OnVisualStateChanged(VisualState oldState, VisualState newState)
     {
-        var baseBorder = BorderBrush;
-        return HasFocusWithin()
-            ? baseBorder.Lerp(theme.Palette.Accent, 0.5)
-            : baseBorder;
+        base.OnVisualStateChanged(oldState, newState);
+
+        bool focusChanged = oldState.IsFocused != newState.IsFocused;
+        if (!focusChanged)
+        {
+            return;
+        }
+
+        for (int i = 0; i < _headerStrip.Count; i++)
+        {
+            if (_headerStrip[i] is TabHeaderButton btn)
+            {
+                btn.RefreshOwnerState();
+            }
+        }
     }
-
-    internal Color GetTabStripBackground(Theme theme) => theme.Palette.ButtonFace;
-
-    internal Color GetTabBackground(Theme theme, bool isSelected) => isSelected ? theme.Palette.ContainerBackground : GetTabStripBackground(theme);
 
     private void DrawContentOutline(IGraphicsContext context, Rect contentRect, Color color, double thickness)
     {

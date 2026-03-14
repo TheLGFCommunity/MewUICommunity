@@ -78,14 +78,9 @@ public class ProgressRing : Control
         InvalidateVisual();
     }
 
-    public override void Render(IGraphicsContext context)
+    protected override void OnRender(IGraphicsContext context)
     {
-        if (!IsVisible)
-        {
-            return;
-        }
-
-        base.Render(context);
+        base.OnRender(context);
 
         if (!_isActive || _clock == null)
         {

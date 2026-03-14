@@ -383,15 +383,15 @@ public sealed class ScrollViewer : ContentControl
 
     protected override void OnRender(IGraphicsContext context)
     {
-        base.OnRender(context);
-
         // Optional background/border (thin style defaults to none).
         if (Background.A > 0 || BorderThickness > 0)
         {
-
             DrawBackgroundAndBorder(context, Bounds, Background, BorderBrush, CornerRadius);
         }
+    }
 
+    protected override void RenderSubtree(IGraphicsContext context)
+    {
         var borderInset = GetBorderVisualInset();
         var viewport = GetContentViewportBounds(Bounds, borderInset);
         var clip = GetContentClipBounds(viewport);
@@ -421,18 +421,6 @@ public sealed class ScrollViewer : ContentControl
         {
             _hBar.Render(context);
         }
-    }
-
-    public override void Render(IGraphicsContext context)
-    {
-        // ContentControl.Render() would render Content again after OnRender().
-        // ScrollViewer renders its content inside a clip and with scroll offsets, so we must avoid double-rendering.
-        if (!IsVisible)
-        {
-            return;
-        }
-
-        OnRender(context);
     }
 
     protected override UIElement? OnHitTest(Point point)

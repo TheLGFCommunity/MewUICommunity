@@ -124,10 +124,8 @@ public abstract class Panel : FrameworkElement
     /// </summary>
     protected virtual void OnChildRemoved(Element child) { }
 
-    public override void Render(IGraphicsContext context)
+    protected override void RenderSubtree(IGraphicsContext context)
     {
-        base.Render(context);
-
         if (ClipToBounds)
         {
             context.Save();

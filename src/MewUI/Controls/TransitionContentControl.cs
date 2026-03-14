@@ -178,15 +178,8 @@ public class TransitionContentControl : Control, IVisualTreeHost
 
     #region Rendering
 
-    public override void Render(IGraphicsContext context)
+    protected override void RenderSubtree(IGraphicsContext context)
     {
-        if (!IsVisible)
-        {
-            return;
-        }
-
-        base.Render(context);
-
         var transition = Transition;
         double p = _progress;
 
@@ -201,7 +194,7 @@ public class TransitionContentControl : Control, IVisualTreeHost
                                            or ContentTransitionKind.Scale
                                            or ContentTransitionKind.Rotate;
         needsClip = false;
-        if (needsClip)  
+        if (needsClip)
         {
             context.Save();
             context.SetClip(Bounds);

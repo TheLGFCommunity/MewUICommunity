@@ -770,19 +770,21 @@ public sealed class GridView : VirtualizedItemsBase, IFocusIntoViewHost, IVirtua
         _rebindVisibleOnNextRender = false;
     }
 
-    public override void Render(IGraphicsContext context)
+    protected override void OnRender(IGraphicsContext context)
     {
-        if (!IsVisible)
-        {
-            return;
-        }
+        var bounds = GetSnappedBorderBounds(Bounds);
+        var bg = GetValue(BackgroundProperty);
+        var borderColor = GetValue(BorderBrushProperty);
+        DrawBackgroundAndBorder(context, bounds, bg, borderColor, CornerRadius);
+    }
 
-        base.Render(context);
-
+    protected override void RenderSubtree(IGraphicsContext context)
+    {
+        var bounds = GetSnappedBorderBounds(Bounds);
         var dpiScale = GetDpi() / 96.0;
         var borderInset = GetBorderVisualInset();
 
-        var contentBounds = GetSnappedBorderBounds(Bounds)
+        var contentBounds = bounds
             .Deflate(new Thickness(borderInset))
             .Deflate(Padding);
 
@@ -809,14 +811,6 @@ public sealed class GridView : VirtualizedItemsBase, IFocusIntoViewHost, IVirtua
         {
             context.Restore();
         }
-    }
-
-    protected override void OnRender(IGraphicsContext context)
-    {
-        var bounds = GetSnappedBorderBounds(Bounds);
-        var bg = GetValue(BackgroundProperty);
-        var borderColor = GetValue(BorderBrushProperty);
-        DrawBackgroundAndBorder(context, bounds, bg, borderColor, CornerRadius);
     }
 
     protected override UIElement? OnHitTest(Point point)

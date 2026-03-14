@@ -66,9 +66,8 @@ public class ContentControl : Control
         Content.Arrange(contentBounds);
     }
 
-    public override void Render(IGraphicsContext context)
+    protected override void RenderSubtree(IGraphicsContext context)
     {
-        base.Render(context);
         Content?.Render(context);
     }
 

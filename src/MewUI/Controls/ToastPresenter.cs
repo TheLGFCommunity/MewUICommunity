@@ -54,7 +54,7 @@ internal sealed class ToastPresenter : Control, IVisualTreeHost
 
     public void Hide()
     {
-        _timer?.Stop(); 
+        _timer?.Stop();
         _transition.Content = null;
     }
 
@@ -112,7 +112,7 @@ internal sealed class ToastPresenter : Control, IVisualTreeHost
     {
         internal ShadowHost(UIElement child) => Content = child;
 
-        public override void Render(IGraphicsContext context)
+        protected override void OnRender(IGraphicsContext context)
         {
             if (Content != null)
             {
@@ -128,7 +128,7 @@ internal sealed class ToastPresenter : Control, IVisualTreeHost
                 }
             }
 
-            base.Render(context);
+            base.OnRender(context);
         }
     }
 
@@ -152,7 +152,7 @@ internal sealed class ToastPresenter : Control, IVisualTreeHost
 
     #region Rendering
 
-    public override void Render(IGraphicsContext context)
+    protected override void RenderSubtree(IGraphicsContext context)
     {
         _transition.Render(context);
     }

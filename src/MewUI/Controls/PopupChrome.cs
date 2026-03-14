@@ -68,19 +68,13 @@ internal sealed class PopupChrome : FrameworkElement, IVisualTreeHost
         int strength = Theme.IsDark ? 128 : 64;
         byte alpha = (byte)(strength * opacity);
 
-        var shadowBounds = new Rect(cb.X, cb.Y + ShadowOffsetY, cb.Width, cb.Height - ShadowOffsetY /*/ 2*/);
+        var shadowBounds = new Rect(cb.X, cb.Y + ShadowOffsetY, cb.Width, cb.Height - ShadowOffsetY);
         context.DrawBoxShadow(shadowBounds, radius, ShadowBlurRadius,
             Color.FromArgb(alpha, 0, 0, 0));
     }
 
-    public override void Render(IGraphicsContext context)
+    protected override void RenderSubtree(IGraphicsContext context)
     {
-        if (!IsVisible)
-        {
-            return;
-        }
-
-        OnRender(context);
         _child.Render(context);
     }
 
