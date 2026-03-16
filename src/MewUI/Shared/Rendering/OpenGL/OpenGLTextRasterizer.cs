@@ -68,7 +68,7 @@ internal static class OpenGLTextRasterizer
                 // with DT_WORDBREAK, so render line-by-line when text overflows vertically.
                 if (trimming == TextTrimming.CharacterEllipsis && wrapping != TextWrapping.NoWrap)
                 {
-                    drawn = Gdi.GdiWrappedEllipsisHelper.TryDrawWrappedWithEllipsis(memDc, text, rect, widthPx, heightPx, horizontalAlignment, verticalAlignment);
+                    drawn = GdiWrappedEllipsisHelper.TryDrawWrappedWithEllipsis(memDc, text, rect, widthPx, heightPx, horizontalAlignment, verticalAlignment);
                 }
 
                 if (!drawn)

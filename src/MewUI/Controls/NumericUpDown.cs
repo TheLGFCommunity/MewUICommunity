@@ -51,7 +51,8 @@ public sealed class NumericUpDown : RangeBase, IVisualTreeHost
             Background = Color.Transparent,
             MinHeight = 0,
             IsVisible = false,
-            IsHitTestVisible = false
+            IsHitTestVisible = false,
+            ImeMode = Input.ImeMode.Disabled
         };
         _textBox.TextChanged += OnTextBoxTextChanged;
         _textBox.KeyDown += OnTextBoxKeyDown;

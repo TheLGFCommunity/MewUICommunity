@@ -28,6 +28,11 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     private const double DefaultHeight = 600;
 
     private IWindowBackend? _backend;
+
+    /// <summary>
+    /// Gets the window backend (internal use only, e.g. for IME mode switching from controls).
+    /// </summary>
+    internal IWindowBackend? Backend => _backend;
     private Size _clientSizeDip = new(DefaultWidth, DefaultHeight);
     private Size _lastLayoutClientSizeDip = Size.Empty;
     private Thickness _lastLayoutPadding = Thickness.Zero;
@@ -205,7 +210,7 @@ public partial class Window : ContentControl, ILayoutRoundingHost
             OverlayLayer.Add(_toastPresenter);
 
         var t = text ?? string.Empty;
-        _toastPresenter.Show(t, Controls.ToastPresenter.ComputeDuration(t));
+        _toastPresenter.Show(t, ToastPresenter.ComputeDuration(t));
     }
 
     private Controls.ToastPresenter? _toastPresenter;

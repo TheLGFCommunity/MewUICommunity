@@ -140,7 +140,7 @@ public sealed class GdiGraphicsFactory : IGraphicsFactory, IWindowResourceReleas
 
     public IGraphicsContext CreateMeasurementContext(uint dpi)
     {
-        var hdc = Native.User32.GetDC(0);
+        var hdc = User32.GetDC(0);
         return new GdiMeasurementContext(hdc, dpi);
     }
 

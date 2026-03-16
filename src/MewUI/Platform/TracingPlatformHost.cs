@@ -1,3 +1,5 @@
+using Aprillz.MewUI.Input;
+
 namespace Aprillz.MewUI.Platform;
 
 internal sealed class TracingPlatformHost : IPlatformHost
@@ -13,8 +15,11 @@ internal sealed class TracingPlatformHost : IPlatformHost
     }
 
     public string DefaultFontFamily => _inner.DefaultFontFamily;
+
     public IMessageBoxService MessageBox => _inner.MessageBox;
+
     public IFileDialogService FileDialog => _inner.FileDialog;
+
     public IClipboardService Clipboard => _inner.Clipboard;
 
     public IWindowBackend CreateWindowBackend(Window window)
@@ -32,9 +37,13 @@ internal sealed class TracingPlatformHost : IPlatformHost
     }
 
     public uint GetSystemDpi() => _inner.GetSystemDpi();
+
     public ThemeVariant GetSystemThemeVariant() => _inner.GetSystemThemeVariant();
+
     public uint GetDpiForWindow(nint hwnd) => _inner.GetDpiForWindow(hwnd);
+
     public bool EnablePerMonitorDpiAwareness() => _inner.EnablePerMonitorDpiAwareness();
+
     public int GetSystemMetricsForDpi(int nIndex, uint dpi) => _inner.GetSystemMetricsForDpi(nIndex, dpi);
 
     public void Run(Application app, Window mainWindow)
@@ -140,6 +149,7 @@ internal sealed class TracingPlatformHost : IPlatformHost
         }
 
         public Point ClientToScreen(Point clientPointDip) => _innerBackend.ClientToScreen(clientPointDip);
+
         public Point ScreenToClient(Point screenPointPx) => _innerBackend.ScreenToClient(screenPointPx);
 
         public void CenterOnOwner() => _innerBackend.CenterOnOwner();
@@ -184,6 +194,8 @@ internal sealed class TracingPlatformHost : IPlatformHost
         {
             _innerBackend.SetCursor(cursorType);
         }
+
+        public void SetImeMode(ImeMode mode) => _innerBackend.SetImeMode(mode);
 
         public void Dispose()
         {

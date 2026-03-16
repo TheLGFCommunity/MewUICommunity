@@ -41,6 +41,8 @@ internal sealed class TextBoxView
         int selectionStart,
         int selectionEnd,
         int textLength,
+        int compositionStart,
+        int compositionLength,
         Action<char[], int, int> copyTextTo)
     {
         if (textLength <= 0)
@@ -96,6 +98,20 @@ internal sealed class TextBoxView
         var textColor = isEnabled ? foreground : theme.Palette.DisabledText;
         context.DrawText(visible, new Rect(drawX, contentBounds.Y, 1_000_000, contentBounds.Height), font, textColor,
             TextAlignment.Left, TextAlignment.Center, TextWrapping.NoWrap);
+
+        // Composition underline
+        if (compositionLength > 0)
+        {
+            int cs = Math.Max(compositionStart, startCol);
+            int ce = Math.Min(compositionStart + compositionLength, endCol);
+            if (cs < ce)
+            {
+                double ulX1 = drawX + GetAbsoluteX(cs, context, font) - prefixWidthStart;
+                double ulX2 = drawX + GetAbsoluteX(ce, context, font) - prefixWidthStart;
+                double ulY = lineTop + lineHeight - 2;
+                context.DrawLine(new Point(ulX1, ulY), new Point(ulX2, ulY), textColor, 1, pixelSnap: true);
+            }
+        }
 
         if (isFocused && !isReadOnly)
         {

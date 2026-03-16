@@ -24,6 +24,11 @@ internal static partial class X11Ime
 
     private static readonly EnvDebugLog.Logger ImeLogger = new("MEWUI_IME_DEBUG", "[X11][IME]");
 
+    // Cached function pointers for dynamic XIM calls (resolved once during IC creation).
+    private static unsafe delegate* unmanaged[Cdecl]<nint, nint, nint, nint, nint> _createNestedList;
+    private static unsafe delegate* unmanaged[Cdecl]<nint, nint, nint, nint, nint> _setICValues;
+    private static nint _xFreePtr;
+
     [StructLayout(LayoutKind.Sequential)]
     private struct XPoint
     {
@@ -146,6 +151,17 @@ internal static partial class X11Ime
                 if (NativeLibrary.TryGetExport(lib, "XVaCreateNestedList", out var pNestedList) && pNestedList != 0)
                 {
                     createNestedList = (delegate* unmanaged[Cdecl]<nint, nint, nint, nint, nint>)pNestedList;
+                    _createNestedList = createNestedList;
+                }
+
+                if (NativeLibrary.TryGetExport(lib, "XSetICValues", out var pSetIcValues) && pSetIcValues != 0)
+                {
+                    _setICValues = (delegate* unmanaged[Cdecl]<nint, nint, nint, nint, nint>)pSetIcValues;
+                }
+
+                if (NativeLibrary.TryGetExport(lib, "XFree", out var pXFree) && pXFree != 0)
+                {
+                    _xFreePtr = pXFree;
                 }
 
                 delegate* unmanaged[Cdecl]<nint, nint, nint*, nint, nint> getImValues = null;
@@ -360,6 +376,41 @@ internal static partial class X11Ime
             if (nFocusWindow != 0) Marshal.FreeCoTaskMem(nFocusWindow);
             if (nPreeditAttributes != 0) Marshal.FreeCoTaskMem(nPreeditAttributes);
             if (nSpotLocation != 0) Marshal.FreeCoTaskMem(nSpotLocation);
+        }
+    }
+
+    /// <summary>
+    /// Updates the XIM spot location for the preedit position.
+    /// Creates a new nested list each call (SFML pattern — reusing is unsafe).
+    /// </summary>
+    internal static unsafe void UpdateSpotLocation(nint ic, int x, int y)
+    {
+        if (ic == 0 || _createNestedList == null || _setICValues == null) return;
+
+        var spot = new XPoint { x = x, y = y };
+        nint nSpotLocation = Marshal.StringToCoTaskMemUTF8("spotLocation");
+        nint nPreeditAttributes = Marshal.StringToCoTaskMemUTF8("preeditAttributes");
+
+        try
+        {
+            nint preeditAttr = _createNestedList(0, nSpotLocation, (nint)(&spot), 0);
+            if (preeditAttr != 0)
+            {
+                _setICValues(ic, nPreeditAttributes, preeditAttr, 0);
+                // XFree the nested list
+                if (_xFreePtr != 0)
+                {
+                    ((delegate* unmanaged[Cdecl]<nint, int>)_xFreePtr)(preeditAttr);
+                }
+            }
+        }
+        catch
+        {
+        }
+        finally
+        {
+            if (nSpotLocation != 0) Marshal.FreeCoTaskMem(nSpotLocation);
+            if (nPreeditAttributes != 0) Marshal.FreeCoTaskMem(nPreeditAttributes);
         }
     }
 }

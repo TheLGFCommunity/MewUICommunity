@@ -68,6 +68,7 @@ internal sealed class MacOSWindowBackend : IWindowBackend
     // - if AppKit calls doCommandBySelector:, it means the key wasn't handled as "text" and should
     //   be forwarded to the app.
     private ImeState _imeState = ImeState.Ground;
+
     private bool _forwardKeyToAppThisKeyDown;
     private readonly HashSet<int> _forceKeyUps = new();
     private bool _enabled = true;
@@ -83,7 +84,9 @@ internal sealed class MacOSWindowBackend : IWindowBackend
     private bool _imeHasMarkedText;
     private string _imeMarkedText = string.Empty;
     private DragEventArgs? _lastDragEventArgs;
+
     internal string ImeMarkedText => _imeMarkedText;
+
     internal Window Window => _window;
 
     private bool _isHandlingKeyDown;
@@ -178,7 +181,8 @@ internal sealed class MacOSWindowBackend : IWindowBackend
         _host.RequestRender();
     }
 
-    public void Hide() { }
+    public void Hide()
+    { }
 
     public void Close()
     {
@@ -213,7 +217,8 @@ internal sealed class MacOSWindowBackend : IWindowBackend
         }
     }
 
-    public void SetIcon(IconSource? icon) { }
+    public void SetIcon(IconSource? icon)
+    { }
 
     public void SetClientSize(double widthDip, double heightDip)
     {
@@ -262,9 +267,11 @@ internal sealed class MacOSWindowBackend : IWindowBackend
         MacOSWindowInterop.SetWindowPosition(_nsWindow, leftDip, cocoaY);
     }
 
-    public void CaptureMouse() { }
+    public void CaptureMouse()
+    { }
 
-    public void ReleaseMouseCapture() { }
+    public void ReleaseMouseCapture()
+    { }
 
     public Point ClientToScreen(Point clientPointDip)
     {
@@ -350,7 +357,6 @@ internal sealed class MacOSWindowBackend : IWindowBackend
             _window.ClearMouseOverState();
             _window.ClearMouseCaptureState();
         }
-
     }
 
     internal bool IsEnabled => _enabled;
@@ -427,6 +433,9 @@ internal sealed class MacOSWindowBackend : IWindowBackend
     {
         MacOSWindowInterop.SetCursor(cursorType);
     }
+
+    public void SetImeMode(Input.ImeMode mode)
+    { }
 
     public void Dispose()
     {
@@ -822,18 +831,23 @@ internal sealed class MacOSWindowBackend : IWindowBackend
             case 1:  // NSEventTypeLeftMouseDown
                 HandleMouseButton(ev, pos, screenPos, MouseButton.Left, isDown: true);
                 break;
+
             case 2:  // NSEventTypeLeftMouseUp
                 HandleMouseButton(ev, pos, screenPos, MouseButton.Left, isDown: false);
                 break;
+
             case 3:  // NSEventTypeRightMouseDown
                 HandleMouseButton(ev, pos, screenPos, MouseButton.Right, isDown: true);
                 break;
+
             case 4:  // NSEventTypeRightMouseUp
                 HandleMouseButton(ev, pos, screenPos, MouseButton.Right, isDown: false);
                 break;
+
             case 25: // NSEventTypeOtherMouseDown
                 HandleMouseButton(ev, pos, screenPos, MapOtherMouseButton(ev), isDown: true);
                 break;
+
             case 26: // NSEventTypeOtherMouseUp
                 HandleMouseButton(ev, pos, screenPos, MapOtherMouseButton(ev), isDown: false);
                 break;
@@ -858,7 +872,6 @@ internal sealed class MacOSWindowBackend : IWindowBackend
                 HandleKeyUp(ev);
                 break;
         }
-
     }
 
     private bool ShouldIgnoreMouseEvent(nint ev, Point pos, Size client, bool allowOutsideWhileCaptured)
@@ -922,9 +935,11 @@ internal sealed class MacOSWindowBackend : IWindowBackend
             case MouseButton.Left:
                 _leftDown = isDown;
                 break;
+
             case MouseButton.Right:
                 _rightDown = isDown;
                 break;
+
             case MouseButton.Middle:
                 _middleDown = isDown;
                 break;
@@ -1773,6 +1788,7 @@ internal static unsafe class MacOSWindowInterop
 
     // NSCursor
     private static nint ClsNSCursor;
+
     private static nint SelArrowCursor;
     private static nint SelIBeamCursor;
     private static nint SelCrosshairCursor;
@@ -1785,8 +1801,10 @@ internal static unsafe class MacOSWindowInterop
 
     // NSWindowStyleMaskTitled | Closable | Miniaturizable | Resizable
     private const ulong DefaultStyleMask = 1ul | 2ul | 4ul | 8ul;
+
     // NSWindowStyleMaskTitled | Closable
     private const ulong DialogStyleMask = 1ul | 2ul;
+
     private const int NSBackingStoreBuffered = 2;
     private const ulong NSViewWidthSizable = 2;
     private const ulong NSViewHeightSizable = 16;
@@ -2704,13 +2722,24 @@ internal static unsafe class MacOSWindowInterop
                         backend.Window.FocusManager.FocusedElement is ITextCompositionClient client)
                     {
                         var caretRect = client.GetCharRectInWindow(client.CompositionStartIndex);
-                        // Convert from window-DIP (y-down) to screen coordinates (y-up).
-                        // frame.origin is the bottom-left of the window in screen coords.
-                        // frame.size.height is the window height.
+
+                        // frame = window outer frame (includes title bar), screen coords (y-up).
+                        // caretRect = content area coords (y-down from top of content).
+                        // Need: title bar height = frame.height - contentView.frame.height.
+                        var contentView = ObjC.MsgSend_nint(window, ObjC.Sel("contentView"));
+                        double contentHeight = frame.size.height;
+                        if (contentView != 0)
+                        {
+                            var cvFrame = ObjC.MsgSend_rect(contentView, SelFrame);
+                            contentHeight = cvFrame.size.height;
+                        }
+                        double titleBarHeight = frame.size.height - contentHeight;
+
+                        // Convert y-down content coords to y-up screen coords.
                         double screenX = frame.origin.x + caretRect.X;
-                        double screenY = frame.origin.y + (frame.size.height - caretRect.Y - caretRect.Height);
+                        double screenY = frame.origin.y + (contentHeight - caretRect.Y - caretRect.Height);
                         var r = new NSRect(screenX, screenY, caretRect.Width, caretRect.Height);
-                        MacOSWindowBackend.ImeNativeLogger.Write($"objc firstRectForCharacterRange view=0x{self:x} range=({range.location},{range.length}) actualRangePtr=0x{actualRange:x} -> ({r.origin.x},{r.origin.y},{r.size.width},{r.size.height})");
+                        MacOSWindowBackend.ImeNativeLogger.Write($"objc firstRectForCharacterRange view=0x{self:x} range=({range.location},{range.length}) actualRangePtr=0x{actualRange:x} -> ({r.origin.x},{r.origin.y},{r.size.width},{r.size.height}) titleBar={titleBarHeight}");
                         return r;
                     }
 

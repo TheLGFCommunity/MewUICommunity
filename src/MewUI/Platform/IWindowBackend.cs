@@ -1,3 +1,5 @@
+using Aprillz.MewUI.Input;
+
 namespace Aprillz.MewUI.Platform;
 
 /// <summary>
@@ -134,4 +136,9 @@ public interface IWindowBackend : IDisposable
     /// </summary>
     /// <param name="cursorType">The cursor type to display.</param>
     void SetCursor(CursorType cursorType);
+
+    /// <summary>
+    /// Sets the IME mode for the window.
+    /// </summary>
+    void SetImeMode(ImeMode mode);
 }

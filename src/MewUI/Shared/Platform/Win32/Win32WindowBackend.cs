@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
 
+using Aprillz.MewUI.Diagnostics;
 using Aprillz.MewUI.Input;
 using Aprillz.MewUI.Native;
 using Aprillz.MewUI.Native.Constants;
@@ -14,6 +15,8 @@ namespace Aprillz.MewUI.Platform.Win32;
 [SupportedOSPlatform("windows")]
 internal sealed class Win32WindowBackend : IWindowBackend
 {
+    private static readonly EnvDebugLog.Logger ImeLogger = new("MEWUI_IME_DEBUG", "[Win32][IME]");
+
     private readonly Win32PlatformHost _host;
 
     internal Window Window { get; }
@@ -27,6 +30,9 @@ internal sealed class Win32WindowBackend : IWindowBackend
     private bool _allowsTransparency;
 
     private readonly TextInputSuppression _textInputSuppression = new();
+    private nint _savedImeContext;
+    private uint _savedConversion;
+    private uint _savedSentence;
     private nint _currentCursor;
     private const uint MonitorDefaultToPrimary = 1;
     private const uint MonitorDefaultToNearest = 2;
@@ -381,6 +387,10 @@ internal sealed class Win32WindowBackend : IWindowBackend
 
             case WindowMessages.WM_IME_ENDCOMPOSITION:
                 return HandleImeEndComposition();
+
+            case 0x0282: // WM_IME_NOTIFY
+                ImeLogger.Write($"WM_IME_NOTIFY wParam=0x{wParam:X}");
+                return 0;
 
             case WindowMessages.WM_SETFOCUS:
                 User32.CreateCaret(Handle, 0, 1, 20);
@@ -1771,6 +1781,55 @@ internal sealed class Win32WindowBackend : IWindowBackend
 
         _currentCursor = User32.LoadCursor(0, id);
         User32.SetCursor(_currentCursor);
+    }
+
+    public void SetImeMode(Input.ImeMode mode)
+    {
+        switch (mode)
+        {
+            case ImeMode.Disabled:
+                var prev = Imm32.ImmAssociateContext(Handle, 0);
+                if (prev != 0) _savedImeContext = prev;
+                break;
+            case ImeMode.AlphaNumeric:
+                {
+                    // Restore context first if disabled
+                    if (_savedImeContext != 0)
+                    {
+                        Imm32.ImmAssociateContext(Handle, _savedImeContext);
+                        _savedImeContext = 0;
+                    }
+                    nint himc = Imm32.ImmGetContext(Handle);
+                    if (himc != 0)
+                    {
+                        Imm32.ImmGetConversionStatus(himc, out _savedConversion, out _savedSentence);
+                        Imm32.ImmSetConversionStatus(himc, Imm32.IME_CMODE_ALPHANUMERIC, _savedSentence);
+                        Imm32.ImmReleaseContext(Handle, himc);
+                    }
+                }
+                break;
+            default: // Auto
+                if (_savedImeContext != 0)
+                {
+                    Imm32.ImmAssociateContext(Handle, _savedImeContext);
+                    _savedImeContext = 0;
+                }
+                else
+                {
+                    nint himc = Imm32.ImmGetContext(Handle);
+                    if (himc != 0)
+                    {
+                        Imm32.ImmSetOpenStatus(himc, true);
+                        if (_savedConversion != 0)
+                        {
+                            Imm32.ImmSetConversionStatus(himc, _savedConversion, _savedSentence);
+                            _savedConversion = 0;
+                        }
+                        Imm32.ImmReleaseContext(Handle, himc);
+                    }
+                }
+                break;
+        }
     }
 
     private uint GetDpiForWindow(nint handle) => Win32DpiApiResolver.GetDpiForWindow(handle);

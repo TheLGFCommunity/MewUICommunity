@@ -490,6 +490,23 @@ public sealed class MultiLineTextBox : TextBase
                 RenderSelectionForRow(context, font, theme, start, startCol, visible, y, drawX);
                 context.DrawText(visible, lineRect, font, textColor, TextAlignment.Left, TextAlignment.Top, TextWrapping.NoWrap);
 
+                // Composition underline
+                if (IsComposing && CompositionLength > 0)
+                {
+                    int compStart = CompositionStartIndex;
+                    int compEnd = compStart + CompositionLength;
+                    // Clamp to this line's document range [start, end) and visible range [startCol, endCol)
+                    int cs = Math.Max(compStart - start, startCol);
+                    int ce = Math.Min(compEnd - start, endCol);
+                    if (cs < ce && cs >= 0)
+                    {
+                        double ulX1 = contentBounds.X - HorizontalOffset + MultiLineTextView.GetPrefixWidthCached(cache, cs, context, font);
+                        double ulX2 = contentBounds.X - HorizontalOffset + MultiLineTextView.GetPrefixWidthCached(cache, ce, context, font);
+                        double ulY = y + lineHeight - 2;
+                        context.DrawLine(new Point(ulX1, ulY), new Point(ulX2, ulY), textColor, 1, pixelSnap: true);
+                    }
+                }
+
                 if (line == caretLine)
                 {
                     int caret = Math.Clamp(CaretPosition - caretLineStart, 0, lineSpan.Length);
@@ -549,6 +566,27 @@ public sealed class MultiLineTextBox : TextBase
                 var rowRect = new Rect(contentBounds.X, yWrap, wrapWidth, lineHeight);
                 RenderSelectionForRow(context, font, theme, lineStart, segStart, rowText, yWrap, contentBounds.X, lineMeasure);
                 context.DrawText(rowText, rowRect, font, textColor, TextAlignment.Left, TextAlignment.Top, TextWrapping.NoWrap);
+
+                // Composition underline (wrap mode)
+                if (IsComposing && CompositionLength > 0)
+                {
+                    int compStart = CompositionStartIndex;
+                    int compEnd = compStart + CompositionLength;
+                    // Convert to line-local indices
+                    int cs = Math.Max(compStart - lineStart, segStart);
+                    int ce = Math.Min(compEnd - lineStart, segEnd);
+                    if (cs < ce)
+                    {
+                        lineMeasure ??= _textView.EnsureLineMeasureCache(lineIndex, lineStart, lineEnd, measure.Context, measure.Font);
+                        double ulX1 = contentBounds.X + MultiLineTextView.GetPrefixWidthCached(lineMeasure, cs, measure.Context, measure.Font)
+                                     - MultiLineTextView.GetPrefixWidthCached(lineMeasure, segStart, measure.Context, measure.Font);
+                        double ulX2 = contentBounds.X + MultiLineTextView.GetPrefixWidthCached(lineMeasure, ce, measure.Context, measure.Font)
+                                     - MultiLineTextView.GetPrefixWidthCached(lineMeasure, segStart, measure.Context, measure.Font);
+                        double ulY = yWrap + lineHeight - 2;
+                        context.DrawLine(new Point(ulX1, ulY), new Point(ulX2, ulY), textColor, 1, pixelSnap: true);
+                    }
+                }
+
                 if (lineMeasure != null)
                 {
                     DrawCaretForWrappedRow(context, contentBounds, font, theme, lineStart, segStart, segEnd, rowText, yWrap, lineMeasure);

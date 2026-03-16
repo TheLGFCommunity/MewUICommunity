@@ -2,11 +2,11 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-using Microsoft.Win32;
-
 using Aprillz.MewUI.Native;
 using Aprillz.MewUI.Native.Constants;
 using Aprillz.MewUI.Native.Structs;
+
+using Microsoft.Win32;
 
 namespace Aprillz.MewUI.Platform.Win32;
 
@@ -42,10 +42,10 @@ public sealed class Win32PlatformHost : IPlatformHost
             const int LOGFONT_FACENAME_OFFSET = 436; // offset 408 (lfMessageFont) + 28 (lfFaceName in LOGFONT)
             const int LF_FACESIZE = 32; // max chars including null
 
-            nint buffer = System.Runtime.InteropServices.Marshal.AllocHGlobal(NONCLIENTMETRICS_SIZE);
+            nint buffer = Marshal.AllocHGlobal(NONCLIENTMETRICS_SIZE);
             try
             {
-                System.Runtime.InteropServices.Marshal.WriteInt32(buffer, NONCLIENTMETRICS_SIZE); // cbSize
+                Marshal.WriteInt32(buffer, NONCLIENTMETRICS_SIZE); // cbSize
                 if (User32.SystemParametersInfo(User32.SPI_GETNONCLIENTMETRICS, (uint)NONCLIENTMETRICS_SIZE, buffer, 0))
                 {
                     unsafe
@@ -59,7 +59,7 @@ public sealed class Win32PlatformHost : IPlatformHost
             }
             finally
             {
-                System.Runtime.InteropServices.Marshal.FreeHGlobal(buffer);
+                Marshal.FreeHGlobal(buffer);
             }
         }
         catch

@@ -233,9 +233,9 @@ internal sealed unsafe partial class CoreTextFont : FontBase
         {
             try
             {
-                _ctLib = System.Runtime.InteropServices.NativeLibrary.Load(
+                _ctLib = NativeLibrary.Load(
                     "/System/Library/Frameworks/CoreText.framework/CoreText");
-                _cfLib = System.Runtime.InteropServices.NativeLibrary.Load(
+                _cfLib = NativeLibrary.Load(
                     "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation");
 
                 FamilyNameAttribute = ReadSymbol(_ctLib, "kCTFontFamilyNameAttribute");
@@ -245,8 +245,8 @@ internal sealed unsafe partial class CoreTextFont : FontBase
 
                 // Callback structs: CFDictionaryCreate takes a pointer TO the struct,
                 // which is the symbol address itself (not dereferenced).
-                KeyCallBacks = System.Runtime.InteropServices.NativeLibrary.GetExport(_cfLib, "kCFTypeDictionaryKeyCallBacks");
-                ValueCallBacks = System.Runtime.InteropServices.NativeLibrary.GetExport(_cfLib, "kCFTypeDictionaryValueCallBacks");
+                KeyCallBacks = NativeLibrary.GetExport(_cfLib, "kCFTypeDictionaryKeyCallBacks");
+                ValueCallBacks = NativeLibrary.GetExport(_cfLib, "kCFTypeDictionaryValueCallBacks");
 
                 IsAvailable = FamilyNameAttribute != 0 && TraitsAttribute != 0 &&
                               WeightTrait != 0 && SlantTrait != 0 &&
@@ -260,7 +260,7 @@ internal sealed unsafe partial class CoreTextFont : FontBase
 
         private static nint ReadSymbol(nint lib, string name)
         {
-            if (!System.Runtime.InteropServices.NativeLibrary.TryGetExport(lib, name, out var ptr) || ptr == 0)
+            if (!NativeLibrary.TryGetExport(lib, name, out var ptr) || ptr == 0)
             {
                 return 0;
             }

@@ -1,3 +1,5 @@
+using Aprillz.MewUI.Input;
+
 namespace Aprillz.MewUI.Platform.Linux;
 
 internal sealed class LinuxWindowBackend : IWindowBackend
@@ -79,4 +81,6 @@ internal sealed class LinuxWindowBackend : IWindowBackend
     {
         // No-op for scaffolding backend.
     }
+
+    public void SetImeMode(ImeMode mode) { }
 }

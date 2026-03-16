@@ -24,6 +24,27 @@ internal static partial class Imm32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool ImmSetCompositionWindow(nint hIMC, ref COMPOSITIONFORM lpCompForm);
 
+    [LibraryImport("imm32.dll")]
+    public static partial nint ImmAssociateContext(nint hWnd, nint hIMC);
+
+    [LibraryImport("imm32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ImmSetOpenStatus(nint hIMC, [MarshalAs(UnmanagedType.Bool)] bool fOpen);
+
+    [LibraryImport("imm32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ImmGetOpenStatus(nint hIMC);
+
+    [LibraryImport("imm32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ImmSetConversionStatus(nint hIMC, uint fdwConversion, uint fdwSentence);
+
+    [LibraryImport("imm32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ImmGetConversionStatus(nint hIMC, out uint fdwConversion, out uint fdwSentence);
+
+    public const uint IME_CMODE_ALPHANUMERIC = 0x0000;
+
     public const int CFS_POINT = 0x0002;
 
     [StructLayout(LayoutKind.Sequential)]

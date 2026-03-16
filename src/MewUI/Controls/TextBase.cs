@@ -13,6 +13,11 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
 
     public event Action<TextCompositionEventArgs>? TextCompositionStart;
 
+    /// <summary>
+    /// Gets or sets the IME mode for this text control.
+    /// </summary>
+    public ImeMode ImeMode { get; set; }
+
     public event Action<TextCompositionEventArgs>? TextCompositionUpdate;
 
     public event Action<TextCompositionEventArgs>? TextCompositionEnd;
@@ -231,8 +236,12 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
     }
 
     int ITextCompositionClient.CompositionStartIndex => _compositionStart;
-    internal int CompositionStartIndex => _compositionStart;
-    internal int CompositionLength => _compositionLength;
+
+    protected internal bool IsComposing => _isTextComposing;
+
+    protected internal int CompositionStartIndex => _compositionStart;
+
+    protected internal int CompositionLength => _compositionLength;
 
     internal (int start, int end) SelectionRange
     {
@@ -796,10 +805,22 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
     {
         base.OnGotFocus();
         StartCaretBlink();
+        if (ImeMode != ImeMode.Auto)
+        {
+            var root = FindVisualRoot();
+            if (root is Window w && w.Backend != null)
+                w.Backend.SetImeMode(ImeMode);
+        }
     }
 
     protected override void OnLostFocus()
     {
+        if (ImeMode != ImeMode.Auto)
+        {
+            var root = FindVisualRoot();
+            if (root is Window w && w.Backend != null)
+                w.Backend.SetImeMode(ImeMode.Auto);
+        }
         StopCaretBlink();
         _caretVisible = true;
         base.OnLostFocus();

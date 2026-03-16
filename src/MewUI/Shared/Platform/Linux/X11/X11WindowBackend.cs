@@ -175,7 +175,6 @@ internal sealed class X11WindowBackend : IWindowBackend
         uint widthPx = (uint)Math.Max(1, (int)Math.Round(widthDip * dpiScale));
         uint heightPx = (uint)Math.Max(1, (int)Math.Round(heightDip * dpiScale));
 
-
         NativeX11.XResizeWindow(Display, Handle, widthPx, heightPx);
         Window.SetClientSizeDip(widthDip, heightDip);
         NativeX11.XFlush(Display);
@@ -276,7 +275,6 @@ internal sealed class X11WindowBackend : IWindowBackend
 
         uint width = (uint)Math.Max(1, (int)Math.Round(initialClientSize.Width * dpiScale));
         uint height = (uint)Math.Max(1, (int)Math.Round(initialClientSize.Height * dpiScale));
-
 
         int x = 0;
         int y = 0;
@@ -511,7 +509,7 @@ internal sealed class X11WindowBackend : IWindowBackend
         if (!hasVisualInfo)
         {
             throw new InvalidOperationException("Failed to select a suitable X11 visual.");
-        } 
+        }
         _glxVisualInfo = new X11GlxVisualInfo(
             visualInfo.visual,
             visualInfo.visualid,
@@ -1041,11 +1039,14 @@ internal sealed class X11WindowBackend : IWindowBackend
                 }
 
                 HandleKey(ev.xkey, isDown: ev.type == KeyPress, isFilteredByIme: filteredByIme);
+                UpdateImeSpotLocation();
                 break;
 
             case ButtonPress:
             case ButtonRelease:
                 HandleButton(ev.xbutton, isDown: ev.type == ButtonPress);
+                if (ev.type == ButtonRelease)
+                    UpdateImeSpotLocation();
                 break;
 
             case MotionNotify:
@@ -1057,6 +1058,7 @@ internal sealed class X11WindowBackend : IWindowBackend
                 {
                     ImeLogger.Write($"FocusIn -> XSetICFocus ic=0x{_xic.ToInt64():X}");
                     NativeX11.XSetICFocus(_xic);
+                    UpdateImeSpotLocation();
                 }
                 break;
 
@@ -1131,6 +1133,21 @@ internal sealed class X11WindowBackend : IWindowBackend
         Render();
     }
 
+    private void UpdateImeSpotLocation()
+    {
+        if (!_imeUsesPreeditPosition || _xic == 0) return;
+        if (Window.FocusManager.FocusedElement is not Input.ITextCompositionClient client) return;
+
+        try
+        {
+            var rect = client.GetCharRectInWindow(client.CompositionStartIndex);
+            X11Ime.UpdateSpotLocation(_xic, (int)rect.X, (int)(rect.Y + rect.Height));
+        }
+        catch
+        {
+        }
+    }
+
     private void HandleKey(XKeyEvent e, bool isDown, bool isFilteredByIme)
     {
         if (Window.Content == null)
@@ -1159,34 +1176,34 @@ internal sealed class X11WindowBackend : IWindowBackend
                 return;
             }
 
-                if (routeKeyDown)
+            if (routeKeyDown)
+            {
+                Window.RaisePreviewKeyDown(args);
+                if (!args.Handled)
                 {
-                    Window.RaisePreviewKeyDown(args);
-                    if (!args.Handled)
-                    {
-                        WindowInputRouter.KeyDown(Window, args);
-                    }
-
-                    // WPF-like Tab behavior:
-                    // - Always let the focused element see KeyDown first.
-                    // - Only perform focus navigation if the key is still unhandled.
-                    if (!args.Handled && args.Key == Key.Tab)
-                    {
-                        if (args.Modifiers.HasFlag(ModifierKeys.Shift))
-                        {
-                            Window.FocusManager.MoveFocusPrevious();
-                        }
-                        else
-                        {
-                            Window.FocusManager.MoveFocusNext();
-                        }
-
-                        args.Handled = true;
-                        return;
-                    }
+                    WindowInputRouter.KeyDown(Window, args);
                 }
 
-                // Text input after key handling (best-effort).
+                // WPF-like Tab behavior:
+                // - Always let the focused element see KeyDown first.
+                // - Only perform focus navigation if the key is still unhandled.
+                if (!args.Handled && args.Key == Key.Tab)
+                {
+                    if (args.Modifiers.HasFlag(ModifierKeys.Shift))
+                    {
+                        Window.FocusManager.MoveFocusPrevious();
+                    }
+                    else
+                    {
+                        Window.FocusManager.MoveFocusNext();
+                    }
+
+                    args.Handled = true;
+                    return;
+                }
+            }
+
+            // Text input after key handling (best-effort).
             // Do not gate text input on KeyDown handling: text controls may handle Enter/Backspace/etc. while
             // still requiring IME commits (or dead-key composed text) to flow through TextInput.
             // Instead, only suppress obvious shortcut-modifier combinations.
@@ -1323,9 +1340,11 @@ internal sealed class X11WindowBackend : IWindowBackend
             case MouseButton.Left:
                 left = isDown;
                 break;
+
             case MouseButton.Middle:
                 middle = isDown;
                 break;
+
             case MouseButton.Right:
                 right = isDown;
                 break;
@@ -1878,7 +1897,6 @@ internal sealed class X11WindowBackend : IWindowBackend
         try { _host.UnregisterWindow(handle); } catch { }
         try { Window.DisposeVisualTree(); } catch { }
 
-
         if (Handle == handle)
         {
             Handle = 0;
@@ -2086,6 +2104,15 @@ internal sealed class X11WindowBackend : IWindowBackend
         }
     }
 
+    public void SetImeMode(Input.ImeMode mode)
+    {
+        if (_xic == 0) return;
+        if (mode == ImeMode.Disabled)
+            NativeX11.XUnsetICFocus(_xic);
+        else
+            NativeX11.XSetICFocus(_xic);
+    }
+
     private sealed class X11GlxWindowSurface : IX11GlxWindowSurface
     {
         public WindowSurfaceKind Kind => WindowSurfaceKind.OpenGL;
@@ -2130,7 +2157,3 @@ internal static class MotifFlags
 {
     public const uint Decorations = 1u << 1;
 }
-
-
-
-
