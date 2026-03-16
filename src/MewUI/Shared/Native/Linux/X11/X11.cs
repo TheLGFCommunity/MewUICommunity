@@ -438,6 +438,10 @@ internal struct XSizeHints
 internal enum XSizeHintsFlags : long
 {
     None = 0L,
+    USPosition = 1L << 0,
+    USSize = 1L << 1,
+    PPosition = 1L << 2,
+    PSize = 1L << 3,
     PMinSize = 1L << 4,
     PMaxSize = 1L << 5,
 }
@@ -511,3 +515,4 @@ internal struct XWindowAttributes
     public bool override_redirect;
     public nint screen;
 }
+

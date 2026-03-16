@@ -90,9 +90,17 @@ internal sealed class X11WindowBackend : IWindowBackend
         }
 
         CreateWindow();
+
+        Window.PerformLayout();
+
+        SetClientSize(Window.Width, Window.Height);
+
+        ApplyResolvedStartupPosition();
+
         _shown = true;
         NativeX11.XMapWindow(Display, Handle);
         NativeX11.XFlush(Display);
+        ApplyResolvedStartupPosition();
 
         // Some IM modules don't start preedit until the IC is focused.
         // Relying solely on FocusIn can miss cases where focus is already on the window when mapped.
@@ -158,7 +166,19 @@ internal sealed class X11WindowBackend : IWindowBackend
 
     public void SetClientSize(double widthDip, double heightDip)
     {
-        // TODO: XResizeWindow
+        if (Display == 0 || Handle == 0)
+        {
+            return;
+        }
+
+        double dpiScale = Window.DpiScale <= 0 ? 1.0 : Window.DpiScale;
+        uint widthPx = (uint)Math.Max(1, (int)Math.Round(widthDip * dpiScale));
+        uint heightPx = (uint)Math.Max(1, (int)Math.Round(heightDip * dpiScale));
+
+
+        NativeX11.XResizeWindow(Display, Handle, widthPx, heightPx);
+        Window.SetClientSizeDip(widthDip, heightDip);
+        NativeX11.XFlush(Display);
     }
 
     public Point GetPosition()
@@ -252,9 +272,11 @@ internal sealed class X11WindowBackend : IWindowBackend
         uint dpi = _host.GetDpiForWindow(0);
         Window.SetDpi(dpi);
         double dpiScale = Window.DpiScale;
+        var initialClientSize = GetInitialClientSize();
 
-        uint width = (uint)Math.Max(1, (int)Math.Round(Window.Width * dpiScale));
-        uint height = (uint)Math.Max(1, (int)Math.Round(Window.Height * dpiScale));
+        uint width = (uint)Math.Max(1, (int)Math.Round(initialClientSize.Width * dpiScale));
+        uint height = (uint)Math.Max(1, (int)Math.Round(initialClientSize.Height * dpiScale));
+
 
         int x = 0;
         int y = 0;
@@ -546,7 +568,7 @@ internal sealed class X11WindowBackend : IWindowBackend
 
         _host.RegisterWindow(Handle, this);
         Window.AttachBackend(this);
-        Window.SetClientSizeDip(width / dpiScale, height / dpiScale);
+        Window.SetClientSizeDip(initialClientSize.Width, initialClientSize.Height);
 
         SetTitle(Window.Title);
         ApplyIcon();
@@ -614,6 +636,81 @@ internal sealed class X11WindowBackend : IWindowBackend
         }
 
         NeedsRender = true;
+    }
+
+    private void ApplyResolvedStartupPosition()
+    {
+        if (Display == 0 || Handle == 0)
+        {
+            return;
+        }
+
+        Point? targetPosition = Window.StartupLocation switch
+        {
+            WindowStartupLocation.Manual => Window.ResolvedStartupPosition,
+            WindowStartupLocation.CenterOwner => ResolveCenterOwnerStartupPosition(),
+            WindowStartupLocation.CenterScreen => ResolveCenterScreenStartupPosition(),
+            _ => null,
+        };
+
+        if (targetPosition is not { } position)
+        {
+            return;
+        }
+
+        bool userSpecified = Window.StartupLocation == WindowStartupLocation.Manual;
+        ApplyStartupPositionHints(position, userSpecified);
+        SetPosition(position.X, position.Y);
+    }
+
+    private Point? ResolveCenterScreenStartupPosition()
+    {
+        int screen = NativeX11.XDefaultScreen(Display);
+        nint root = NativeX11.XRootWindow(Display, screen);
+        if (NativeX11.XGetWindowAttributes(Display, root, out var rootAttrs) == 0)
+        {
+            return null;
+        }
+
+        double dpiScale = Window.DpiScale <= 0 ? 1.0 : Window.DpiScale;
+        double left = Math.Max(0, (rootAttrs.width - Math.Round(Window.Width * dpiScale)) / 2.0) / dpiScale;
+        double top = Math.Max(0, (rootAttrs.height - Math.Round(Window.Height * dpiScale)) / 2.0) / dpiScale;
+        return new Point(left, top);
+    }
+
+    private Point? ResolveCenterOwnerStartupPosition()
+    {
+        if (Window.Owner is not { } owner || owner.Handle == 0)
+        {
+            return Window.ResolvedStartupPosition;
+        }
+
+        var ownerPosition = owner.Position;
+        var ownerSize = owner.ClientSize;
+        return new Point(
+            ownerPosition.X + ((ownerSize.Width - Window.Width) * 0.5),
+            ownerPosition.Y + ((ownerSize.Height - Window.Height) * 0.5));
+    }
+
+    private void ApplyStartupPositionHints(Point positionDip, bool userSpecified)
+    {
+        var hints = new XSizeHints();
+        double dpiScale = Window.DpiScale <= 0 ? 1.0 : Window.DpiScale;
+        hints.x = (int)Math.Round(positionDip.X * dpiScale);
+        hints.y = (int)Math.Round(positionDip.Y * dpiScale);
+        hints.flags = userSpecified ? XSizeHintsFlags.USPosition : XSizeHintsFlags.PPosition;
+        NativeX11.XSetWMNormalHints(Display, Handle, ref hints);
+    }
+
+    private Size GetInitialClientSize()
+    {
+        var windowSize = Window.WindowSize;
+        var currentClientSize = Window.ClientSize;
+
+        double width = double.IsNaN(windowSize.Width) ? Math.Max(1, currentClientSize.Width) : windowSize.Width;
+        double height = double.IsNaN(windowSize.Height) ? Math.Max(1, currentClientSize.Height) : windowSize.Height;
+
+        return new Size(Math.Max(1, width), Math.Max(1, height));
     }
 
     private unsafe void ApplyIcon()
@@ -2021,3 +2118,7 @@ internal static class MotifFlags
 {
     public const uint Decorations = 1u << 1;
 }
+
+
+
+

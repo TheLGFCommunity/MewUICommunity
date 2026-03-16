@@ -58,7 +58,7 @@ internal sealed unsafe class Direct2DMeasurementContext : MeasureGraphicsContext
                 height += -metrics.top;
             }
 
-            return new Size(metrics.widthIncludingTrailingWhitespace, height);
+            return new Size(TextMeasurePolicy.ApplyWidthPadding(metrics.widthIncludingTrailingWhitespace), height);
         }
         finally
         {
