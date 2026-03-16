@@ -30,9 +30,44 @@ public sealed class Win32PlatformHost : IPlatformHost
     private int _renderRequested;
     private nint _renderEvent;
 
-    public string DefaultFontFamily => "Segoe UI";
-    //public string DefaultFontFamily => "Noto Sans";
-    //public string DefaultFontFamily => "Noto Sans KR";
+    public string DefaultFontFamily { get; } = QuerySystemFontFamily();
+
+    private static string QuerySystemFontFamily()
+    {
+        try
+        {
+            // NONCLIENTMETRICS size varies by Windows version.
+            // On Vista+ the struct is 504 bytes (with iPaddedBorderWidth).
+            const int NONCLIENTMETRICS_SIZE = 504;
+            const int LOGFONT_FACENAME_OFFSET = 436; // offset 408 (lfMessageFont) + 28 (lfFaceName in LOGFONT)
+            const int LF_FACESIZE = 32; // max chars including null
+
+            nint buffer = System.Runtime.InteropServices.Marshal.AllocHGlobal(NONCLIENTMETRICS_SIZE);
+            try
+            {
+                System.Runtime.InteropServices.Marshal.WriteInt32(buffer, NONCLIENTMETRICS_SIZE); // cbSize
+                if (User32.SystemParametersInfo(User32.SPI_GETNONCLIENTMETRICS, (uint)NONCLIENTMETRICS_SIZE, buffer, 0))
+                {
+                    unsafe
+                    {
+                        char* faceName = (char*)((byte*)buffer + LOGFONT_FACENAME_OFFSET);
+                        var name = new string(faceName);
+                        if (!string.IsNullOrWhiteSpace(name))
+                            return name;
+                    }
+                }
+            }
+            finally
+            {
+                System.Runtime.InteropServices.Marshal.FreeHGlobal(buffer);
+            }
+        }
+        catch
+        {
+        }
+
+        return "Segoe UI";
+    }
 
     public IMessageBoxService MessageBox { get; } = new Win32MessageBoxService();
 
