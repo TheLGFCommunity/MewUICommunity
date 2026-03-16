@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Reflection;
 using System.Text.RegularExpressions;
 
@@ -23,7 +22,7 @@ static partial class IconResource
         return _all;
     }
 
-    private static string CombineBaseDirectory(params string[] path) 
+    private static string CombineBaseDirectory(params string[] path)
         => Path.Combine([AppContext.BaseDirectory, .. path]);
 
     private static void LoadFromFile(string resourceName, List<IconEntry> list)
