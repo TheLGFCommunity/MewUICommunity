@@ -38,6 +38,7 @@ partial class GalleryView
             {
                 var result = await MessageBox.ConfirmAsync(
                     "This is a Warning message box sample.",
+                    icon: PromptIconKind.Warning,
                     detail: "System.InvalidOperationException: The operation failed.\n   at App.Module.Process() in Module.cs:line 42\n   at App.Main() in Program.cs:line 10\n\nThis is a multiline detail text that can be scrolled if the content is too long.",
                     owner: window);
                 return $"Result: {result}";
@@ -47,6 +48,7 @@ partial class GalleryView
             {
                 var result = await MessageBox.AskYesNoAsync(
                     "A critical error occurred while saving the file.\nWould you like to retry?",
+                    icon: PromptIconKind.Error,
                     detail: "A critical error occurred while saving the file.\nWould you like to retry?",
                     owner: window);
                 return $"Result: {result}";
@@ -76,7 +78,7 @@ partial class GalleryView
                 {
                     Message = "Connection to server timed out after 30 seconds.",
                     Icon = PromptIconKind.Shield,
-                    Buttons = [new("Retry", MessageButtonRole.Accept), new("Ignore", MessageButtonRole.Destructive), new("Cancel", MessageButtonRole.Reject)],
+                    Buttons = [new("Retry", MessageButtonRole.Accept), new("Ignore", MessageButtonRole.Destructive), new("Abort", MessageButtonRole.Reject)],
                     Detail = "Host: api.example.com:443\nAttempts: 3/3",
                     Owner = window
                 });

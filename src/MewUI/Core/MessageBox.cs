@@ -73,24 +73,52 @@ public static class MessageBox
 {
     public static async Task NotifyAsync(string message, PromptIconKind icon = PromptIconKind.Info, string? detail = null, Window? owner = null)
     {
-        await PromptAsync(new MessageBoxOptions { Message = message, Icon = icon, Detail = detail, Owner = owner, Buttons = MessageBoxWindow.ButtonsOk });
+        await PromptAsync(new MessageBoxOptions
+        {
+            Message = message,
+            Icon = icon,
+            Detail = detail,
+            Owner = owner,
+            Buttons = MessageBoxWindow.ButtonsOk
+        });
     }
 
-    public static async Task<bool> ConfirmAsync(string message, string? detail = null, Window? owner = null)
+    public static async Task<bool> ConfirmAsync(string message, PromptIconKind icon = PromptIconKind.Question, string? detail = null, Window? owner = null)
     {
-        var r = await PromptAsync(new MessageBoxOptions { Message = message, Icon = PromptIconKind.Question, Detail = detail, Owner = owner, Buttons = MessageBoxWindow.ButtonsOkCancel });
+        var r = await PromptAsync(new MessageBoxOptions
+        {
+            Message = message,
+            Icon = icon,
+            Detail = detail,
+            Owner = owner,
+            Buttons = MessageBoxWindow.ButtonsOkCancel
+        });
         return r == true;
     }
 
-    public static async Task<bool> AskYesNoAsync(string message, string? detail = null, Window? owner = null)
+    public static async Task<bool> AskYesNoAsync(string message, PromptIconKind icon = PromptIconKind.Question, string? detail = null, Window? owner = null)
     {
-        var r = await PromptAsync(new MessageBoxOptions { Message = message, Icon = PromptIconKind.Question, Detail = detail, Owner = owner, Buttons = MessageBoxWindow.ButtonsYesNo });
+        var r = await PromptAsync(new MessageBoxOptions
+        {
+            Message = message,
+            Icon = icon,
+            Detail = detail,
+            Owner = owner,
+            Buttons = MessageBoxWindow.ButtonsYesNo
+        });
         return r == true;
     }
 
-    public static async Task<bool?> AskYesNoCancelAsync(string message, string? detail = null, Window? owner = null)
+    public static async Task<bool?> AskYesNoCancelAsync(string message, PromptIconKind icon = PromptIconKind.Question, string? detail = null, Window? owner = null)
     {
-        return await PromptAsync(new MessageBoxOptions { Message = message, Icon = PromptIconKind.Question, Detail = detail, Owner = owner, Buttons = MessageBoxWindow.ButtonsYesNoCancel });
+        return await PromptAsync(new MessageBoxOptions
+        {
+            Message = message,
+            Icon = icon,
+            Detail = detail,
+            Owner = owner,
+            Buttons = MessageBoxWindow.ButtonsYesNoCancel
+        });
     }
 
     public static async Task<bool?> PromptAsync(MessageBoxOptions options)

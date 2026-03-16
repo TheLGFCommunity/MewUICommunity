@@ -67,6 +67,7 @@ public sealed class MessageBoxWindow : Window
         _checkBoxes = checkBoxes ?? [];
 
         Title = title;
+        Padding = new Thickness(16);
         StartupLocation = WindowStartupLocation.CenterOwner;
 
         Closed += OnDialogClosed;
@@ -98,7 +99,7 @@ public sealed class MessageBoxWindow : Window
         var bodyPanel = new StackPanel
         {
             Orientation = Orientation.Vertical,
-            Spacing = 10
+            Spacing = 12
         };
 
         bodyPanel.Add(new Label
@@ -160,6 +161,8 @@ public sealed class MessageBoxWindow : Window
             checkBoxPanel.Add(cb);
         }
 
+        checkBoxPanel.IsVisible = checkBoxPanel.Children.Count > 0;
+
         // Layout
         var iconControl = new PromptIcon
         {
@@ -174,8 +177,7 @@ public sealed class MessageBoxWindow : Window
 
         var root = new DockPanel
         {
-            Margin = new Thickness(8),
-            Spacing = 14
+            Spacing = 16
         };
         root.Add(buttonPanel);
         root.Add(checkBoxPanel);
