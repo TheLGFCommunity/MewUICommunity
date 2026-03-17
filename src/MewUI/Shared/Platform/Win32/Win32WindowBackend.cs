@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
@@ -1485,18 +1486,28 @@ internal sealed class Win32WindowBackend : IWindowBackend
 
         try
         {
-            var caretRect = client.GetCharRectInWindow(client.CompositionStartIndex);
+            // Position at current caret (end of composition text).
+            int caretPos = (client is Controls.TextBase tb) ? tb.CaretPosition : client.CompositionStartIndex;
+            var caretRect = client.GetCharRectInWindow(caretPos);
             double dpiScale = GetDpiForWindow(Handle) / 96.0;
-            var form = new Imm32.COMPOSITIONFORM
+            int px = (int)(caretRect.X * dpiScale);
+            int py = (int)(caretRect.Y * dpiScale);
+            int lineH = (int)(caretRect.Height * dpiScale);
+
+            var compForm = new Imm32.COMPOSITIONFORM
             {
-                dwStyle = Imm32.CFS_POINT,
-                ptCurrentPos = new Imm32.POINT
-                {
-                    x = (int)(caretRect.X * dpiScale),
-                    y = (int)((caretRect.Y + caretRect.Height) * dpiScale),
-                }
+                dwStyle = Imm32.CFS_POINT | Imm32.CFS_FORCE_POSITION,
+                ptCurrentPos = new Imm32.POINT { x = px, y = py },
             };
-            Imm32.ImmSetCompositionWindow(himc, ref form);
+            Imm32.ImmSetCompositionWindow(himc, ref compForm);
+
+            var candForm = new Imm32.CANDIDATEFORM
+            {
+                dwIndex = 0,
+                dwStyle = Imm32.CFS_CANDIDATEPOS,
+                ptCurrentPos = new Imm32.POINT { x = px, y = py },
+            };
+            Imm32.ImmSetCandidateWindow(himc, ref candForm);
         }
         finally
         {

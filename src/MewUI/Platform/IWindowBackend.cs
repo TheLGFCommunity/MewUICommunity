@@ -1,5 +1,3 @@
-using Aprillz.MewUI.Input;
-
 namespace Aprillz.MewUI.Platform;
 
 /// <summary>
@@ -140,5 +138,5 @@ public interface IWindowBackend : IDisposable
     /// <summary>
     /// Sets the IME mode for the window.
     /// </summary>
-    void SetImeMode(ImeMode mode);
+    void SetImeMode(Input.ImeMode mode);
 }

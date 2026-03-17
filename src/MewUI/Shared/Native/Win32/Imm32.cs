@@ -46,6 +46,21 @@ internal static partial class Imm32
     public const uint IME_CMODE_ALPHANUMERIC = 0x0000;
 
     public const int CFS_POINT = 0x0002;
+    public const int CFS_FORCE_POSITION = 0x0020;
+    public const int CFS_CANDIDATEPOS = 0x0040;
+
+    [LibraryImport("imm32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ImmSetCandidateWindow(nint hIMC, ref CANDIDATEFORM lpCandidate);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct CANDIDATEFORM
+    {
+        public int dwIndex;
+        public int dwStyle;
+        public POINT ptCurrentPos;
+        public RECT rcArea;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     public struct COMPOSITIONFORM
