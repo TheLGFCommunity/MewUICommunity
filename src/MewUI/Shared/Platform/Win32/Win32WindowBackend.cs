@@ -1486,26 +1486,31 @@ internal sealed class Win32WindowBackend : IWindowBackend
 
         try
         {
-            // Position at current caret (end of composition text).
+            double dpiScale = GetDpiForWindow(Handle) / 96.0;
+
+            // Composition window follows current caret (end of preedit text).
             int caretPos = (client is Controls.TextBase tb) ? tb.CaretPosition : client.CompositionStartIndex;
             var caretRect = client.GetCharRectInWindow(caretPos);
-            double dpiScale = GetDpiForWindow(Handle) / 96.0;
-            int px = (int)(caretRect.X * dpiScale);
-            int py = (int)(caretRect.Y * dpiScale);
-            int lineH = (int)(caretRect.Height * dpiScale);
+            int caretPx = (int)(caretRect.X * dpiScale);
+            int caretPy = (int)(caretRect.Y * dpiScale);
 
             var compForm = new Imm32.COMPOSITIONFORM
             {
                 dwStyle = Imm32.CFS_POINT | Imm32.CFS_FORCE_POSITION,
-                ptCurrentPos = new Imm32.POINT { x = px, y = py },
+                ptCurrentPos = new Imm32.POINT { x = caretPx, y = caretPy },
             };
             Imm32.ImmSetCompositionWindow(himc, ref compForm);
+
+            // Candidate window stays at composition start position.
+            var startRect = client.GetCharRectInWindow(client.CompositionStartIndex);
+            int startPx = (int)(startRect.X * dpiScale);
+            int startPy = (int)(startRect.Y * dpiScale);
 
             var candForm = new Imm32.CANDIDATEFORM
             {
                 dwIndex = 0,
                 dwStyle = Imm32.CFS_CANDIDATEPOS,
-                ptCurrentPos = new Imm32.POINT { x = px, y = py },
+                ptCurrentPos = new Imm32.POINT { x = startPx, y = startPy },
             };
             Imm32.ImmSetCandidateWindow(himc, ref candForm);
         }
