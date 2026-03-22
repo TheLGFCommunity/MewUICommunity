@@ -148,9 +148,10 @@ public class WrapPanel : Panel
 
             if (measureChildren)
             {
+                bool horizontal = Orientation == Orientation.Horizontal;
                 var measureSize = new Size(
-                    double.IsNaN(ItemWidth) ? constraintSize.Width : ItemWidth,
-                    double.IsNaN(ItemHeight) ? constraintSize.Height : ItemHeight
+                    double.IsNaN(ItemWidth) ? (horizontal ? double.PositiveInfinity : constraintSize.Width) : ItemWidth,
+                    double.IsNaN(ItemHeight) ? (horizontal ? constraintSize.Height : double.PositiveInfinity) : ItemHeight
                 );
                 child.Measure(measureSize);
             }
