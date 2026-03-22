@@ -40,17 +40,17 @@ public sealed class MessageBoxWindow : Window
 
     public bool? DialogResult { get; private set; }
 
-    internal static readonly IReadOnlyList<MessageButton> ButtonsOk =
-        [new("OK", MessageButtonRole.Accept)];
+    internal static IReadOnlyList<MessageButton> ButtonsOk =>
+        [new(MewUIStrings.OK, MessageButtonRole.Accept)];
 
-    internal static readonly IReadOnlyList<MessageButton> ButtonsOkCancel =
-        [new("OK", MessageButtonRole.Accept), new("Cancel", MessageButtonRole.Reject)];
+    internal static IReadOnlyList<MessageButton> ButtonsOkCancel =>
+        [new(MewUIStrings.OK, MessageButtonRole.Accept), new(MewUIStrings.Cancel, MessageButtonRole.Reject)];
 
-    internal static readonly IReadOnlyList<MessageButton> ButtonsYesNo =
-        [new("Yes", MessageButtonRole.Accept), new("No", MessageButtonRole.Destructive)];
+    internal static IReadOnlyList<MessageButton> ButtonsYesNo =>
+        [new(MewUIStrings.Yes, MessageButtonRole.Accept), new(MewUIStrings.No, MessageButtonRole.Destructive)];
 
-    internal static readonly IReadOnlyList<MessageButton> ButtonsYesNoCancel =
-        [new("Yes", MessageButtonRole.Accept), new("No", MessageButtonRole.Destructive), new("Cancel", MessageButtonRole.Reject)];
+    internal static IReadOnlyList<MessageButton> ButtonsYesNoCancel =>
+        [new(MewUIStrings.Yes, MessageButtonRole.Accept), new(MewUIStrings.No, MessageButtonRole.Destructive), new(MewUIStrings.Cancel, MessageButtonRole.Reject)];
 
     public MessageBoxWindow(
         string message,

@@ -198,23 +198,6 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     /// </summary>
     public OverlayLayer OverlayLayer { get; }
 
-    /// <summary>
-    /// Shows a toast notification at 2/3 of the window height.
-    /// Auto-dismisses after a duration based on text length.
-    /// </summary>
-    public void ShowToast(string text)
-    {
-        _toastPresenter ??= new Controls.ToastPresenter();
-
-        if (!OverlayLayer.Contains(_toastPresenter))
-            OverlayLayer.Add(_toastPresenter);
-
-        var t = text ?? string.Empty;
-        _toastPresenter.Show(t, ToastPresenter.ComputeDuration(t));
-    }
-
-    private Controls.ToastPresenter? _toastPresenter;
-
     private readonly PopupManager _popupManager;
 
     private sealed class AdornerEntry
@@ -409,6 +392,11 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     public Window? Owner { get; private set; }
 
     internal bool IsDialogWindow => _isDialogWindow;
+
+    /// <summary>
+    /// Hint for platform backends to use alert-panel animation (e.g. macOS bounce).
+    /// </summary>
+    internal bool IsAlertWindow { get; set; }
 
     /// <summary>
     /// Gets or sets the initial window placement behavior.
@@ -1079,6 +1067,15 @@ public partial class Window : ContentControl, ILayoutRoundingHost
                 ? Math.Min(desired.Height + padding.VerticalThickness, WindowSize.MaxHeight)
                 : Height;
 
+            // Snap to pixel boundaries to avoid fractional DIP sizes that cause
+            // mismatches between the view backing size and the rendering surface.
+            double dpiScale = DpiScale;
+            if (dpiScale > 0)
+            {
+                fitWidth = Math.Ceiling(fitWidth * dpiScale) / dpiScale;
+                fitHeight = Math.Ceiling(fitHeight * dpiScale) / dpiScale;
+            }
+
             if (fitWidth != Width || fitHeight != Height)
             {
                 _clientSizeDip = new Size(fitWidth, fitHeight);
@@ -1598,7 +1595,6 @@ public partial class Window : ContentControl, ILayoutRoundingHost
         });
 
         OverlayLayer.Dispose();
-        _toastPresenter = null;
 
         DisposeAdorners();
         _popupManager.Dispose();
