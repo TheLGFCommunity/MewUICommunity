@@ -145,7 +145,7 @@ public partial record class Theme
         {
             Setters =
             [
-                Setter.Create(Control.ForegroundProperty, t => t.Palette.WindowText),
+                // Foreground inherited from Window style — not set here
                 Setter.Create(Control.CornerRadiusProperty, t => t.Metrics.ControlCornerRadius),
                 Setter.Create(Control.BorderThicknessProperty, t => t.Metrics.ControlBorderThickness),
             ],
@@ -170,7 +170,7 @@ public partial record class Theme
             [
                 Setter.Create(Control.BackgroundProperty, t => t.Palette.ControlBackground),
                 Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder),
-                Setter.Create(Control.ForegroundProperty, t => t.Palette.WindowText),
+                // Foreground inherited from Window style
                 ..extraSetters,
             ],
             Triggers =
@@ -234,6 +234,7 @@ public partial record class Theme
             Setters =
             [
                 Setter.Create(Control.BackgroundProperty, t => t.Palette.WindowBackground),
+                Setter.Create(Control.ForegroundProperty, t => t.Palette.WindowText),
                 Setter.Create(Control.FontFamilyProperty, t => t.Metrics.FontFamily),
                 Setter.Create(Control.FontSizeProperty, t => t.Metrics.FontSize),
                 Setter.Create(Control.FontWeightProperty, t => t.Metrics.FontWeight),
@@ -310,7 +311,6 @@ public partial record class Theme
             Setters =
             [
                 Setter.Create(Control.BackgroundProperty, t => t.Palette.ButtonFace),
-                Setter.Create(Control.ForegroundProperty, t => t.Palette.WindowText),
                 Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder),
                 Setter.Create(ToggleSwitch.ThumbBrushProperty, t => t.Palette.WindowText),
                 Setter.Create(Control.PaddingProperty, new Thickness(8, 4, 8, 4)),
@@ -470,7 +470,6 @@ public partial record class Theme
             [
                 Setter.Create(Control.BackgroundProperty, Color.Transparent),
                 Setter.Create(Control.BorderBrushProperty, Color.Transparent),
-                Setter.Create(Control.ForegroundProperty, t => t.Palette.WindowText),
                 Setter.Create(Control.CornerRadiusProperty, t => t.Metrics.ControlCornerRadius),
                 Setter.Create(Control.BorderThicknessProperty, 0.0),
             ],
@@ -522,7 +521,7 @@ public partial record class Theme
             [
                 Setter.Create(Control.BackgroundProperty, t => t.Palette.ButtonFace),
                 Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder),
-                Setter.Create(Control.ForegroundProperty, t => t.Palette.WindowText),
+
                 Setter.Create(Control.PaddingProperty, new Thickness(4, 2, 4, 2)),
                 Setter.Create(Control.CornerRadiusProperty, t => t.Metrics.ControlCornerRadius),
             ],
@@ -538,7 +537,7 @@ public partial record class Theme
             [
                 Setter.Create(Control.BackgroundProperty, t => t.Palette.ButtonFace),
                 Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder),
-                Setter.Create(Control.ForegroundProperty, t => t.Palette.WindowText),
+
                 Setter.Create(Control.PaddingProperty, new Thickness(8, 4, 8, 4)),
                 Setter.Create(FrameworkElement.MinHeightProperty, t => t.Metrics.BaseControlHeight),
                 Setter.Create(Control.CornerRadiusProperty, t => t.Metrics.ControlCornerRadius),
@@ -596,7 +595,7 @@ public partial record class Theme
             [
                 Setter.Create(Control.BackgroundProperty, t => t.Palette.ButtonFace),
                 Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder),
-                Setter.Create(Control.ForegroundProperty, t => t.Palette.WindowText),
+
                 Setter.Create(Control.PaddingProperty, new Thickness(8, 4, 8, 4)),
                 Setter.Create(FrameworkElement.MinHeightProperty, t => t.Metrics.BaseControlHeight),
                 Setter.Create(Control.CornerRadiusProperty, t => t.Metrics.ControlCornerRadius),
@@ -687,7 +686,7 @@ public partial record class Theme
             [
                 Setter.Create(Control.BackgroundProperty, t => t.Palette.ControlBackground),
                 Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder),
-                Setter.Create(Control.ForegroundProperty, t => t.Palette.WindowText),
+
                 Setter.Create(Control.PaddingProperty, new Thickness(4, 2, 4, 2)),
                 Setter.Create(FrameworkElement.MinHeightProperty, t => t.Metrics.BaseControlHeight),
                 Setter.Create(Control.CornerRadiusProperty, t => t.Metrics.ControlCornerRadius),
@@ -729,7 +728,7 @@ public partial record class Theme
             [
                 Setter.Create(Control.BackgroundProperty, t => t.Palette.ButtonFace),
                 Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder),
-                Setter.Create(Control.ForegroundProperty, t => t.Palette.WindowText),
+
                 Setter.Create(Control.PaddingProperty, new Thickness(8, 4, 8, 4)),
                 Setter.Create(FrameworkElement.MinHeightProperty, t => t.Metrics.BaseControlHeight),
                 Setter.Create(Control.CornerRadiusProperty, t => t.Metrics.ControlCornerRadius),
@@ -789,7 +788,7 @@ public partial record class Theme
             [
                 Setter.Create(Control.BackgroundProperty, t => t.Palette.ButtonFace),
                 Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder),
-                Setter.Create(Control.ForegroundProperty, t => t.Palette.WindowText),
+
                 Setter.Create(Control.PaddingProperty, new Thickness(8, 4, 8, 4)),
                 Setter.Create(FrameworkElement.MinHeightProperty, t => t.Metrics.BaseControlHeight),
                 Setter.Create(Control.CornerRadiusProperty, t => t.Metrics.ControlCornerRadius),
@@ -819,7 +818,7 @@ public partial record class Theme
                     Setters =
                     [
                         Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder),
-                        Setter.Create(Control.ForegroundProperty, t => t.Palette.WindowText),
+        
                     ],
                 },
                 new StateTrigger
@@ -828,7 +827,7 @@ public partial record class Theme
                     Setters =
                     [
                         Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder.Lerp(t.Palette.Accent, 0.5)),
-                        Setter.Create(Control.ForegroundProperty, t => t.Palette.WindowText),
+        
                     ],
                 },
                 new StateTrigger

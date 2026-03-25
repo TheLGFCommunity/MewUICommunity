@@ -322,7 +322,7 @@ public abstract class Control : FrameworkElement
         for (int i = 0; i < style.Setters.Count; i++)
         {
             if (style.Setters[i] is Setter s)
-                PropertyStore.SetTarget(s.Property, s.ResolveValue(theme));
+                PropertyStore.SetStyle(s.Property, s.ResolveValue(theme));
         }
 
         for (int i = 0; i < style.Triggers.Count; i++)
@@ -333,7 +333,7 @@ public abstract class Control : FrameworkElement
                 for (int j = 0; j < trigger.Setters.Count; j++)
                 {
                     if (trigger.Setters[j] is Setter s)
-                        PropertyStore.SetTarget(s.Property, s.ResolveValue(theme));
+                        PropertyStore.SetTrigger(s.Property, s.ResolveValue(theme));
                 }
             }
         }
@@ -409,6 +409,11 @@ public abstract class Control : FrameworkElement
         ApplyStyleChain(_style, flags, snap);
     }
 
+    // Tracks which property IDs were set by triggers in the previous state.
+    // Reused across calls to avoid allocation.
+    private HashSet<int>? _activeTriggerPropertyIds;
+    private HashSet<int>? _newTriggerPropertyIds;
+
     private void ApplyStyleChain(Style? style, VisualStateFlags flags, bool snap)
     {
         if (style == null) return;
@@ -416,34 +421,111 @@ public abstract class Control : FrameworkElement
         // Process BasedOn first (lower priority)
         ApplyStyleChain(style.BasedOn, flags, snap);
 
-        // Apply base setters
+        // Apply base setters (source = Style)
         for (int i = 0; i < style.Setters.Count; i++)
-            ApplySetter(style.Setters[i], snap);
+            ApplySetter(style.Setters[i], ValueSource.Style, snap);
 
-        // Apply matching triggers in declaration order.
-        // Convention: declared in priority order (Hot < Focused < Pressed < Disabled).
-        // Higher specificity triggers should be declared after lower specificity ones.
+        // Collect current trigger property IDs
+        _newTriggerPropertyIds ??= new HashSet<int>();
+        _newTriggerPropertyIds.Clear();
+
         for (int i = 0; i < style.Triggers.Count; i++)
         {
             var trigger = style.Triggers[i];
             if (trigger.Matches(flags))
             {
                 for (int j = 0; j < trigger.Setters.Count; j++)
-                    ApplySetter(trigger.Setters[j], snap);
+                {
+                    if (trigger.Setters[j] is Setter s)
+                        _newTriggerPropertyIds.Add(s.Property.Id);
+                }
             }
+        }
+
+        // Clear trigger values for properties that were triggered before but not now
+        if (_activeTriggerPropertyIds != null)
+        {
+            foreach (var id in _activeTriggerPropertyIds)
+            {
+                if (!_newTriggerPropertyIds.Contains(id))
+                    RestoreFromStyle(style, id, snap);
+            }
+        }
+
+        // Apply matching triggers (source = Trigger)
+        for (int i = 0; i < style.Triggers.Count; i++)
+        {
+            var trigger = style.Triggers[i];
+            if (trigger.Matches(flags))
+            {
+                for (int j = 0; j < trigger.Setters.Count; j++)
+                    ApplySetter(trigger.Setters[j], ValueSource.Trigger, snap);
+            }
+        }
+
+        // Swap active sets
+        (_activeTriggerPropertyIds, _newTriggerPropertyIds) =
+            (_newTriggerPropertyIds, _activeTriggerPropertyIds);
+    }
+
+    private void RestoreFromStyle(Style style, int propertyId, bool snap)
+    {
+        // If a higher-priority source (Local) owns this property, don't touch it
+        var currentSource = PropertyStore.GetSource(propertyId);
+        if (currentSource >= ValueSource.Local)
+            return;
+
+        // Find the base setter value for this property from the style chain
+        var setterValue = FindStyleSetterValue(style, propertyId);
+        if (setterValue != null)
+        {
+            var property = MewPropertyRegistry.GetProperty(propertyId);
+            if (property != null)
+            {
+                if (!snap && _style?.FindTransition(propertyId) is Styling.Transition transition)
+                    Animator.Animate(property, setterValue, transition.Duration, transition.Easing);
+                else
+                    PropertyStore.SetStyle(property, setterValue);
+            }
+        }
+        else
+        {
+            // No style setter — clear to let inherited/default take effect
+            PropertyStore.ClearSource(propertyId, ValueSource.Trigger);
         }
     }
 
-    private void ApplySetter(SetterBase setter, bool snap)
+    private static object? FindStyleSetterValue(Style? style, int propertyId)
+    {
+        while (style != null)
+        {
+            for (int i = 0; i < style.Setters.Count; i++)
+            {
+                if (style.Setters[i] is Setter s && s.Property.Id == propertyId)
+                    return s.Value;
+            }
+            style = style.BasedOn;
+        }
+        return null;
+    }
+
+    private void ApplySetter(SetterBase setter, ValueSource source, bool snap)
     {
         switch (setter)
         {
             case Setter s:
+                // Don't override higher-priority sources (e.g. Local beats Trigger/Style)
+                var currentSource = PropertyStore.GetSource(s.Property.Id);
+                if (currentSource > source)
+                    break;
+
                 var value = s.ResolveValue(Theme);
-                if (!snap && _style?.FindTransition(s.Property.Id) is Transition transition)
+                if (!snap && _style?.FindTransition(s.Property.Id) is Styling.Transition transition)
                     Animator.Animate(s.Property, value, transition.Duration, transition.Easing);
+                else if (source == ValueSource.Style)
+                    PropertyStore.SetStyle(s.Property, value);
                 else
-                    PropertyStore.SetTarget(s.Property, value);
+                    PropertyStore.SetTrigger(s.Property, value);
                 break;
 
             case TargetSetter ts:

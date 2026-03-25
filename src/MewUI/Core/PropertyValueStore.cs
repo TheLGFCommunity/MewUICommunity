@@ -1,9 +1,32 @@
 namespace Aprillz.MewUI;
 
 /// <summary>
+/// Source of a property value, ordered by priority (higher = wins).
+/// </summary>
+internal enum ValueSource : byte
+{
+    Default = 0,
+    Inherited = 1,
+    Style = 2,
+    Trigger = 3,
+    Local = 4,
+}
+
+/// <summary>
+/// Wrapper allocated only when a property is being animated.
+/// Preserves the base value so it can be restored when the animation completes.
+/// </summary>
+internal sealed class AnimatedEntry
+{
+    public required object BaseValue;
+    public required object AnimatedValue;
+    public ValueSource BaseSource;
+}
+
+/// <summary>
 /// Per-instance storage for <see cref="MewProperty{T}"/> values.
-/// Manages local values, animation targets, and an animated-value overlay
-/// that an external animation system can set without this class knowing about clocks or interpolation.
+/// Each entry stores a single value and its <see cref="ValueSource"/>.
+/// Animation is handled via an <see cref="AnimatedEntry"/> wrapper (allocated only when animating).
 /// </summary>
 internal sealed class PropertyValueStore
 {
@@ -12,7 +35,7 @@ internal sealed class PropertyValueStore
     private Entry[]? _entries;
 
     /// <summary>
-    /// Callback invoked when a snap (<see cref="SetTarget"/>) overrides a property that has an animated value.
+    /// Callback invoked when a snap overrides a property that has an animated value.
     /// The animation system registers this to stop the running clock for that property.
     /// </summary>
     internal Action<int>? StopAnimationCallback;
@@ -29,25 +52,20 @@ internal sealed class PropertyValueStore
     }
 
     /// <summary>
-    /// Gets the current (possibly interpolated) value of a property.
-    /// Resolution: local value > animated value > target value > default.
+    /// Gets the current effective value of a property.
+    /// Resolution: Local > Animated > Trigger > Style > Inherited > Default.
     /// </summary>
     public T GetValue<T>(MewProperty<T> property)
     {
         ref var entry = ref GetEntry(property.Id);
-        if (entry.IsEmpty)
+
+        if (entry.Source == ValueSource.Default)
             return property.GetDefaultForType(_ownerType);
 
-        if (entry.HasLocal)
-            return (T)entry.LocalValue!;
+        if (entry.Value is AnimatedEntry animated)
+            return (T)animated.AnimatedValue;
 
-        if (entry.HasAnimated)
-            return (T)entry.AnimatedValue!;
-
-        if (entry.HasTarget)
-            return (T)entry.TargetValue!;
-
-        return property.GetDefaultForType(_ownerType);
+        return (T)entry.Value!;
     }
 
     /// <summary>
@@ -56,19 +74,14 @@ internal sealed class PropertyValueStore
     public object GetBoxedValue(MewProperty property)
     {
         ref var entry = ref GetEntry(property.Id);
-        if (entry.IsEmpty)
+
+        if (entry.Source == ValueSource.Default)
             return property.GetBoxedDefaultForType(_ownerType);
 
-        if (entry.HasLocal)
-            return entry.LocalValue!;
+        if (entry.Value is AnimatedEntry animated)
+            return animated.AnimatedValue;
 
-        if (entry.HasAnimated)
-            return entry.AnimatedValue!;
-
-        if (entry.HasTarget)
-            return entry.TargetValue!;
-
-        return property.GetBoxedDefaultForType(_ownerType);
+        return entry.Value!;
     }
 
     /// <summary>
@@ -76,39 +89,92 @@ internal sealed class PropertyValueStore
     /// </summary>
     public void SetLocal<T>(MewProperty<T> property, T value)
     {
+        SetValue(property, value!, ValueSource.Local);
+    }
+
+    /// <summary>
+    /// Sets a style base setter value.
+    /// </summary>
+    public void SetStyle(MewProperty property, object value)
+    {
+        SetValue(property, value, ValueSource.Style);
+    }
+
+    /// <summary>
+    /// Sets a trigger setter value. Overrides style values.
+    /// </summary>
+    public void SetTrigger(MewProperty property, object value)
+    {
+        SetValue(property, value, ValueSource.Trigger);
+    }
+
+    /// <summary>
+    /// Sets a property value with the given source.
+    /// If the current source has higher priority, the call is ignored.
+    /// Stops any running animation on this property.
+    /// </summary>
+    public void SetValue(MewProperty property, object value, ValueSource source)
+    {
         ref var entry = ref EnsureEntry(property.Id);
-        if (entry.HasLocal && EqualityComparer<T>.Default.Equals((T)entry.LocalValue!, value))
+
+        // Don't overwrite a higher-priority source (e.g. Local beats Trigger)
+        if (source < entry.Source && entry.Source != ValueSource.Default)
             return;
-        var oldValue = CaptureOldEffective(ref entry, property);
-        entry.LocalValue = value;
-        entry.HasLocal = true;
+
+        // No change — skip to avoid infinite invalidation loops
+        if (entry.Source == source && entry.Value is not AnimatedEntry && Equals(entry.Value, value))
+            return;
+
+        var oldValue = CaptureEffective(ref entry, property);
+
+        // Stop any running animation
+        if (entry.Value is AnimatedEntry)
+        {
+            StopAnimationCallback?.Invoke(property.Id);
+        }
+
+        entry.Value = value;
+        entry.Source = source;
         NotifyChanged(property, oldValue, value);
     }
 
     /// <summary>
-    /// Sets the animation target for a property. Snaps immediately (no animation).
-    /// Stops any running animation on this property via <see cref="StopAnimationCallback"/>.
+    /// Clears the value if it was set by the given source,
+    /// allowing lower-priority values to take effect.
+    /// Called when a trigger no longer matches.
+    /// </summary>
+    public void ClearSource(int propertyId, ValueSource source)
+    {
+        ref var entry = ref GetEntry(propertyId);
+        if (entry.Source != source)
+            return;
+
+        var property = MewPropertyRegistry.GetProperty(propertyId);
+
+        // Stop animation if running
+        if (entry.Value is AnimatedEntry)
+        {
+            StopAnimationCallback?.Invoke(propertyId);
+        }
+
+        var oldValue = CaptureEffective(ref entry, property);
+        entry.Value = null;
+        entry.Source = ValueSource.Default;
+
+        if (property != null)
+        {
+            var newValue = property.GetBoxedDefaultForType(_ownerType);
+            NotifyChanged(property, oldValue, newValue);
+        }
+    }
+
+    /// <summary>
+    /// Backward-compatible SetTarget — maps to Trigger source.
+    /// Used by existing code (PropertyForward, MewObjectPropertyBinding, etc.)
     /// </summary>
     public void SetTarget(MewProperty property, object value)
     {
-        ref var entry = ref EnsureEntry(property.Id);
-
-        if (entry.HasTarget && !entry.HasAnimated && Equals(entry.TargetValue, value))
-            return; // no change
-
-        var oldValue = CaptureOldEffective(ref entry, property);
-
-        // Stop any running animation for this property
-        if (entry.HasAnimated)
-        {
-            StopAnimationCallback?.Invoke(property.Id);
-            entry.HasAnimated = false;
-            entry.AnimatedValue = null;
-        }
-
-        entry.TargetValue = value;
-        entry.HasTarget = true;
-        NotifyChanged(property, oldValue, value);
+        SetValue(property, value, ValueSource.Trigger);
     }
 
     /// <summary>
@@ -120,110 +186,118 @@ internal sealed class PropertyValueStore
     }
 
     /// <summary>
-    /// Sets the target value without stopping animations or notifying.
-    /// Used by <see cref="Animation.PropertyAnimator"/> when updating the underlying target
-    /// alongside a new animation (the animated overlay handles the visual update).
+    /// Returns true if this store has any non-default value for the property.
+    /// Used by inheritance resolution to determine when to stop walking the parent chain.
+    /// </summary>
+    public bool HasOwnValue(int propertyId)
+    {
+        ref var entry = ref GetEntry(propertyId);
+        return entry.Source != ValueSource.Default;
+    }
+
+    /// <summary>
+    /// Gets the source of the current value for a property.
+    /// </summary>
+    internal ValueSource GetSource(int propertyId)
+    {
+        ref var entry = ref GetEntry(propertyId);
+        return entry.Source;
+    }
+
+    /// <summary>
+    /// Returns true if any value (style, trigger, or local) has been set.
+    /// </summary>
+    internal bool HasTargetValue(int propertyId)
+    {
+        ref var entry = ref GetEntry(propertyId);
+        return entry.Source != ValueSource.Default;
+    }
+
+    /// <summary>
+    /// Gets the current visual value (animated if running, otherwise the base value).
+    /// Used by the animation system to capture the "from" value.
+    /// </summary>
+    internal object? GetCurrentVisualValue(int propertyId)
+    {
+        ref var entry = ref GetEntry(propertyId);
+        if (entry.Value is AnimatedEntry animated)
+            return animated.AnimatedValue;
+        return entry.Value;
+    }
+
+    /// <summary>
+    /// Sets the underlying target value without stopping animations or notifying.
+    /// Used by <see cref="Animation.PropertyAnimator"/> when starting a new animation.
     /// </summary>
     internal void SetTargetDirect(MewProperty property, object value)
     {
         ref var entry = ref EnsureEntry(property.Id);
-        entry.TargetValue = value;
-        entry.HasTarget = true;
+        if (entry.Value is AnimatedEntry animated)
+        {
+            animated.BaseValue = value;
+        }
+        else
+        {
+            entry.Value = value;
+        }
     }
 
     /// <summary>
     /// Sets the animated (interpolated) value for a property.
+    /// Wraps the current value in an <see cref="AnimatedEntry"/> if not already wrapped.
     /// Called by the animation system on each frame tick.
     /// </summary>
     internal void SetAnimatedValue(int propertyId, object value)
     {
         ref var entry = ref EnsureEntry(propertyId);
         var property = MewPropertyRegistry.GetProperty(propertyId);
-        var oldValue = property != null ? CaptureOldEffective(ref entry, property) : null;
-        entry.AnimatedValue = value;
-        entry.HasAnimated = true;
+        var oldValue = property != null ? CaptureEffective(ref entry, property) : null;
+
+        if (entry.Value is AnimatedEntry animated)
+        {
+            animated.AnimatedValue = value;
+        }
+        else
+        {
+            entry.Value = new AnimatedEntry
+            {
+                BaseValue = entry.Value!,
+                AnimatedValue = value,
+                BaseSource = entry.Source,
+            };
+        }
 
         if (property != null)
             NotifyChanged(property, oldValue, value);
     }
 
     /// <summary>
-    /// Clears the animated value for a property, letting the target value show through.
+    /// Clears the animated value, restoring the base value.
     /// Called by the animation system when an animation completes.
     /// </summary>
     internal void ClearAnimatedValue(int propertyId)
     {
         ref var entry = ref GetEntry(propertyId);
-        if (!entry.HasAnimated)
+
+        if (entry.Value is not AnimatedEntry animated)
             return;
 
         var property = MewPropertyRegistry.GetProperty(propertyId);
-        var oldValue = property != null ? CaptureOldEffective(ref entry, property) : null;
+        var oldValue = property != null ? (object?)animated.AnimatedValue : null;
 
-        entry.HasAnimated = false;
-        entry.AnimatedValue = null;
+        entry.Value = animated.BaseValue;
+        entry.Source = animated.BaseSource;
 
         if (property != null)
-        {
-            // After clearing animated, effective is now target or default
-            var newValue = entry.HasLocal ? entry.LocalValue
-                : entry.HasTarget ? entry.TargetValue
-                : property.GetBoxedDefaultForType(_ownerType);
-            NotifyChanged(property, oldValue, newValue);
-        }
+            NotifyChanged(property, oldValue, entry.Value);
     }
 
     /// <summary>
-    /// Returns true if a target value has been set for this property.
-    /// </summary>
-    internal bool HasTargetValue(int propertyId)
-    {
-        ref var entry = ref GetEntry(propertyId);
-        return entry.HasTarget;
-    }
-
-    /// <summary>
-    /// Gets the current visual value for a property (animated if running, otherwise target).
-    /// Used by the animation system to capture the "from" value when starting a new animation.
-    /// </summary>
-    internal object? GetCurrentVisualValue(int propertyId)
-    {
-        ref var entry = ref GetEntry(propertyId);
-        if (entry.HasAnimated)
-            return entry.AnimatedValue;
-        if (entry.HasTarget)
-            return entry.TargetValue;
-        return null;
-    }
-
-    /// <summary>
-    /// Returns true if this store has any value (local, target, or animated) for the property.
-    /// Used by inheritance resolution to determine when to stop walking the parent chain.
-    /// </summary>
-    public bool HasOwnValue(int propertyId)
-    {
-        ref var entry = ref GetEntry(propertyId);
-        return !entry.IsEmpty;
-    }
-
-    /// <summary>
-    /// Clears the local value for a property, allowing style/animation/default to take precedence.
+    /// Clears the local value for a property, allowing style/trigger/inherited to take effect.
     /// </summary>
     public void ClearLocal(MewProperty property)
     {
-        ref var entry = ref GetEntry(property.Id);
-        if (entry.IsEmpty || !entry.HasLocal)
-            return;
-
-        var oldValue = entry.LocalValue;
-        entry.HasLocal = false;
-        entry.LocalValue = null;
-
-        // After clearing local, effective is now animated/target/default
-        var newValue = entry.HasAnimated ? entry.AnimatedValue
-            : entry.HasTarget ? entry.TargetValue
-            : property.GetBoxedDefaultForType(_ownerType);
-        NotifyChanged(property, oldValue, newValue);
+        ClearSource(property.Id, ValueSource.Local);
     }
 
     /// <summary>
@@ -245,16 +319,18 @@ internal sealed class PropertyValueStore
 
     /// <summary>
     /// Captures the current effective value before a mutation.
-    /// Only performs work when the property has a <see cref="MewProperty.ChangedWithValuesCallback"/>.
     /// </summary>
-    private object? CaptureOldEffective(ref Entry entry, MewProperty property)
+    private object? CaptureEffective(ref Entry entry, MewProperty? property)
     {
-        if (property.ChangedWithValuesCallback == null)
+        if (property?.ChangedWithValuesCallback == null)
             return null;
 
-        if (entry.HasLocal) return entry.LocalValue;
-        if (entry.HasAnimated) return entry.AnimatedValue;
-        if (entry.HasTarget) return entry.TargetValue;
+        if (entry.Value is AnimatedEntry animated)
+            return animated.AnimatedValue;
+
+        if (entry.Source != ValueSource.Default)
+            return entry.Value;
+
         return property.GetBoxedDefaultForType(_ownerType);
     }
 
@@ -284,14 +360,8 @@ internal sealed class PropertyValueStore
     {
         public static Entry Empty;
 
-        public object? LocalValue;
-        public object? TargetValue;
-        public object? AnimatedValue;
-        public bool HasLocal;
-        public bool HasTarget;
-        public bool HasAnimated;
-
-        public readonly bool IsEmpty => !HasLocal && !HasTarget;
+        public object? Value;       // plain value, or AnimatedEntry when animating
+        public ValueSource Source;  // who set this value
     }
 }
 
