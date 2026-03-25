@@ -302,8 +302,8 @@ internal sealed class Win32WindowBackend : IWindowBackend
                 return 0;
 
             case WindowMessages.WM_CLOSE:
-                Window.RequestClose(fromBackend: true);
-                User32.DestroyWindow(Handle);
+                if (Window.RequestClose(fromBackend: true))
+                    User32.DestroyWindow(Handle);
                 return 0;
 
             case WindowMessages.WM_CANCELMODE:

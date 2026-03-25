@@ -852,11 +852,14 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     public void Close()
         => RequestClose(fromBackend: false);
 
-    internal void RequestClose(bool fromBackend)
+    /// <summary>
+    /// Returns true if the close proceeded, false if cancelled.
+    /// </summary>
+    internal bool RequestClose(bool fromBackend)
     {
         if (_lifetimeState == WindowLifetimeState.Closed)
         {
-            return;
+            return true;
         }
 
         if (Closing != null)
@@ -864,22 +867,23 @@ public partial class Window : ContentControl, ILayoutRoundingHost
             var args = new ClosingEventArgs();
             Closing.Invoke(args);
             if (args.Cancel)
-                return;
+                return false;
         }
 
         if (_backend == null)
         {
             RaiseClosed();
-            return;
+            return true;
         }
 
         if (fromBackend)
         {
             RaiseClosed();
-            return;
+            return true;
         }
 
         _backend.Close();
+        return true;
     }
 
     /// <summary>

@@ -196,6 +196,9 @@ internal sealed class MacOSWindowBackend : IWindowBackend
     {
         if (_nsWindow != 0)
         {
+            // Programmatic close: check cancel first
+            if (!_window.RequestClose(fromBackend: false))
+                return;
             MacOSWindowInterop.CloseWindow(_nsWindow);
             RaiseClosedOnce();
         }
@@ -670,14 +673,12 @@ internal sealed class MacOSWindowBackend : IWindowBackend
     internal void RaiseClosedOnce()
     {
         if (_closedRaised)
-        {
             return;
-        }
 
         _closedRaised = true;
         try
         {
-            _window.RequestClose(fromBackend: true);
+            _window.RaiseClosed();
         }
         catch
         {
@@ -1752,6 +1753,7 @@ internal static unsafe class MacOSWindowInterop
     private static nint SelConvertPointToScreen;
     private static nint SelConvertPointFromScreen;
     private static nint SelWindow;
+    private static nint SelWindowShouldClose;
     private static nint SelWindowWillClose;
     private static nint SelObject;
     private static nint SelInterpretKeyEvents;
@@ -1883,6 +1885,7 @@ internal static unsafe class MacOSWindowInterop
         SelConvertPointToScreen = ObjC.Sel("convertPointToScreen:");
         SelConvertPointFromScreen = ObjC.Sel("convertPointFromScreen:");
         SelWindow = ObjC.Sel("window");
+        SelWindowShouldClose = ObjC.Sel("windowShouldClose:");
         SelWindowWillClose = ObjC.Sel("windowWillClose:");
         SelObject = ObjC.Sel("object");
         SelInterpretKeyEvents = ObjC.Sel("interpretKeyEvents:");
@@ -3282,25 +3285,44 @@ internal static unsafe class MacOSWindowInterop
     }
 
     [UnmanagedCallersOnly]
+    private static byte MewUIWindowDelegate_windowShouldClose(nint self, nint sel, nint sender)
+    {
+        try
+        {
+            if (sender == 0)
+                return 1; // allow close
+
+            if (TryGetWindowCloseTarget(sender, out var backend))
+            {
+                if (!backend.Window.RequestClose(fromBackend: true))
+                    return 0; // cancelled
+
+                backend.RaiseClosedOnce();
+            }
+
+            return 1; // allow close
+        }
+        catch
+        {
+            // Never let an exception cross the unmanaged boundary.
+            return 1;
+        }
+    }
+
+    [UnmanagedCallersOnly]
     private static void MewUIWindowDelegate_windowWillClose(nint self, nint sel, nint notification)
     {
         try
         {
             if (notification == 0)
-            {
                 return;
-            }
 
             nint window = GetWindowFromNotification(notification);
             if (window == 0)
-            {
                 return;
-            }
 
             if (TryGetWindowCloseTarget(window, out var backend))
-            {
                 backend.RaiseClosedOnce();
-            }
         }
         catch
         {
@@ -3332,8 +3354,12 @@ internal static unsafe class MacOSWindowInterop
             cls = ObjC.AllocateClassPair(ClsNSObject, className);
             if (cls != 0)
             {
-                var imp = (nint)(delegate* unmanaged<nint, nint, nint, void>)&MewUIWindowDelegate_windowWillClose;
-                _ = ObjC.AddMethod(cls, SelWindowWillClose, imp, "v@:@");
+                var shouldCloseImp = (nint)(delegate* unmanaged<nint, nint, nint, byte>)&MewUIWindowDelegate_windowShouldClose;
+                _ = ObjC.AddMethod(cls, SelWindowShouldClose, shouldCloseImp, "c@:@");
+
+                var willCloseImp = (nint)(delegate* unmanaged<nint, nint, nint, void>)&MewUIWindowDelegate_windowWillClose;
+                _ = ObjC.AddMethod(cls, SelWindowWillClose, willCloseImp, "v@:@");
+
                 ObjC.RegisterClassPair(cls);
             }
         }
