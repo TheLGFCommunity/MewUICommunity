@@ -93,8 +93,8 @@ internal sealed class PngDecoder : IImageDecoder
                     return false; // keep it simple (fast path)
                 }
 
-                // Support: grayscale(0), rgb(2), indexed(3), rgba(6)
-                if (colorType != 0 && colorType != 2 && colorType != 3 && colorType != 6)
+                // Support: grayscale(0), rgb(2), indexed(3), grayscale+alpha(4), rgba(6)
+                if (colorType != 0 && colorType != 2 && colorType != 3 && colorType != 4 && colorType != 6)
                 {
                     return false;
                 }
@@ -137,6 +137,7 @@ internal sealed class PngDecoder : IImageDecoder
             0 => 1,
             2 => 3,
             3 => 1,
+            4 => 2,
             6 => 4,
             _ => 0
         };
@@ -311,6 +312,22 @@ internal sealed class PngDecoder : IImageDecoder
                 dstBgra[di + 2] = r;
                 dstBgra[di + 3] = 0xFF;
                 si += 3;
+                di += 4;
+            }
+            return;
+        }
+
+        if (colorType == 4) // Grayscale + Alpha
+        {
+            for (int i = 0; i < width * height; i++)
+            {
+                byte v = raw[si + 0];
+                byte a = raw[si + 1];
+                dstBgra[di + 0] = v;
+                dstBgra[di + 1] = v;
+                dstBgra[di + 2] = v;
+                dstBgra[di + 3] = a;
+                si += 2;
                 di += 4;
             }
             return;

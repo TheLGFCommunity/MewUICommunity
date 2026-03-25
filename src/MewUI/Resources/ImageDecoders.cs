@@ -17,6 +17,7 @@ public static class ImageDecoders
         Register(new BmpDecoder());
         Register(new PngDecoder());
         Register(new JpegDecoder());
+        Register(new IconDecoder());
     }
 
     private readonly record struct Registration(IImageDecoder Decoder, int Priority, long Order);
