@@ -328,7 +328,6 @@ partial class GalleryView
 
                     new StackPanel().Vertical().Spacing(4).Children(
                         new CheckBox().Content("_Remember me"),
-                        new Label().Text("_Remember me"),
                         new CheckBox().Content("_Auto-save")
                     ),
 
