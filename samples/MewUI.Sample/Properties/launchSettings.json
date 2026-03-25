@@ -7,6 +7,10 @@
       "commandName": "Project",
       "commandLineArgs": "--gl"
     },
+    "MewVG": {
+      "commandName": "Project",
+      "commandLineArgs": "--vg"
+    },
     "GDI": {
       "commandName": "Project",
       "commandLineArgs": "--gdi"
