@@ -76,7 +76,9 @@ internal static class AccessKeyRenderer
         double scale = dpiScale > 0 ? dpiScale : 1.0;
         double x = LayoutRounding.RoundToPixel(textX + prefixWidth, scale);
         double w = LayoutRounding.RoundToPixel(charWidth, scale);
-        double y = LayoutRounding.RoundToPixel(textY + fullSize.Height, scale);
+        // Draw underline just below baseline (baseline = textY + Ascent, offset into descent)
+        double baseline = textY + font.Ascent;
+        double y = LayoutRounding.RoundToPixel(baseline, scale);
         double h = LayoutRounding.RoundToPixel(0.5, scale);
 
         context.FillRectangle(new Rect(x, y, Math.Max(w, h), h), color);
