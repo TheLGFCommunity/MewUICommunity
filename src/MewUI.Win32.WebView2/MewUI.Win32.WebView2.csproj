@@ -11,7 +11,6 @@
     <IsAotCompatible>true</IsAotCompatible>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
-    <!-- NuGet 패키지 메타데이터 -->
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>logo.png</PackageIcon>
     <PackageTags>webview2;win32;native;aot;gui;browser</PackageTags>
@@ -38,7 +37,6 @@
     </Reference>
   </ItemGroup>
 
-  <!-- 외부 DLL을 NuGet 패키지에 포함 -->
   <PropertyGroup>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeExternalDlls</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>
@@ -54,29 +52,15 @@
     <Folder Include="External\" />
   </ItemGroup>
 
-  <!-- 네이티브 런타임 파일 (WebView2Loader.dll) - NuGet 패키지에 포함 -->
+   <ItemGroup>
+    <None Remove="runtimes\win-arm64\native\WebView2Loader.dll" />
+    <None Remove="runtimes\win-x64\native\WebView2Loader.dll" />
+    <None Remove="runtimes\win-x86\native\WebView2Loader.dll" />
+  </ItemGroup>
   <ItemGroup>
-    <None Include="runtimes\**\*" Pack="true" PackagePath="runtimes\" />
-  </ItemGroup>
-
-  <!-- 소스 빌드 시 아키텍처별 런타임 DLL 복사 -->
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64' Or ('$(RuntimeIdentifier)' == '' And '$(Platform)' != 'x86' And '$(Platform)' != 'ARM64')">
-    <ContentWithTargetPath Include="runtimes\win-x64\native\WebView2Loader.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>WebView2Loader.dll</TargetPath>
-    </ContentWithTargetPath>
-  </ItemGroup>
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x86' Or '$(Platform)' == 'x86'">
-    <ContentWithTargetPath Include="runtimes\win-x86\native\WebView2Loader.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>WebView2Loader.dll</TargetPath>
-    </ContentWithTargetPath>
-  </ItemGroup>
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-arm64' Or '$(Platform)' == 'ARM64'">
-    <ContentWithTargetPath Include="runtimes\win-arm64\native\WebView2Loader.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>WebView2Loader.dll</TargetPath>
-    </ContentWithTargetPath>
+    <EmbeddedResource Include="runtimes\win-arm64\native\WebView2Loader.dll" />
+    <EmbeddedResource Include="runtimes\win-x64\native\WebView2Loader.dll" />
+    <EmbeddedResource Include="runtimes\win-x86\native\WebView2Loader.dll" />
   </ItemGroup>
   
   <ItemGroup>
@@ -99,8 +83,6 @@
     <Using Include="System.Runtime.InteropServices" />
   </ItemGroup>
   
-
-  <!-- MSBuild targets, README, 로고 -->
   <ItemGroup>
     <None Include="build\$(PackageId).targets" Pack="true" PackagePath="build\" />
     <None Include="build\$(PackageId).targets" Pack="true" PackagePath="buildTransitive\" />
