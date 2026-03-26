@@ -314,7 +314,7 @@ public sealed unsafe class Direct2DGraphicsFactory : IGraphicsFactory, IWindowRe
         EnsureInitialized();
 
         // Create DC render target and bind to target's Hdc
-        var (rt, generation) = CreateDcRenderTargetForBitmap(target);
+        var (rt, generation) = GetOrCreateDcRenderTarget(target);
         return new Direct2DGraphicsContext(
             hwnd: 0,
             dpiScale: target.DpiScale,
@@ -324,36 +324,61 @@ public sealed unsafe class Direct2DGraphicsFactory : IGraphicsFactory, IWindowRe
             dwriteFactory: _dwriteFactory,
             defaultStrokeStyle: _defaultFixedStrokeStyle,
             onRecreateTarget: null,
-            ownsRenderTarget: true);
+            ownsRenderTarget: false);
     }
 
-    private (nint renderTarget, int generation) CreateDcRenderTargetForBitmap(Direct2DBitmapRenderTarget target)
+    // Cached DC render target per layered bitmap target — avoids per-frame COM object creation.
+    // The DC render target is rebound to the same HDC each frame via BindDC.
+    private readonly Dictionary<nint, (nint RenderTarget, int Generation, int Width, int Height)> _cachedDcTargets = new();
+
+    private (nint renderTarget, int generation) GetOrCreateDcRenderTarget(Direct2DBitmapRenderTarget target)
     {
-        // DC render target with premultiplied alpha for offscreen rendering
+        var hdc = target.Hdc;
+        lock (_rtLock)
+        {
+            // Reuse existing DC render target if dimensions match
+            if (_cachedDcTargets.TryGetValue(hdc, out var cached) &&
+                cached.Width == target.PixelWidth &&
+                cached.Height == target.PixelHeight)
+            {
+                // Re-bind to the same HDC (required per BeginDraw cycle)
+                var rebindRect = new RECT(0, 0, target.PixelWidth, target.PixelHeight);
+                int rebindHr = D2D1VTable.BindDC((ID2D1DCRenderTarget*)cached.RenderTarget, hdc, ref rebindRect);
+                if (rebindHr >= 0)
+                    return (cached.RenderTarget, cached.Generation);
+
+                // BindDC failed — recreate
+                ComHelpers.Release(cached.RenderTarget);
+                _cachedDcTargets.Remove(hdc);
+            }
+            else if (_cachedDcTargets.Remove(hdc, out var old))
+            {
+                ComHelpers.Release(old.RenderTarget);
+            }
+        }
+
+        // Create new DC render target
         var pixelFormat = new D2D1_PIXEL_FORMAT(87, D2D1_ALPHA_MODE.PREMULTIPLIED); // DXGI_FORMAT_B8G8R8A8_UNORM
         float dpi = (float)(96.0 * target.DpiScale);
         var rtProps = new D2D1_RENDER_TARGET_PROPERTIES(D2D1_RENDER_TARGET_TYPE.DEFAULT, pixelFormat, dpi, dpi, 0, 0);
 
         int hr = D2D1VTable.CreateDcRenderTarget((ID2D1Factory*)_d2dFactory, ref rtProps, out var dcRenderTarget);
         if (hr < 0 || dcRenderTarget == 0)
-        {
             throw new InvalidOperationException($"CreateDcRenderTarget failed: 0x{hr:X8}");
-        }
 
-        // Bind to the target's memory DC
         var rect = new RECT(0, 0, target.PixelWidth, target.PixelHeight);
-        hr = D2D1VTable.BindDC((ID2D1DCRenderTarget*)dcRenderTarget, target.Hdc, ref rect);
+        hr = D2D1VTable.BindDC((ID2D1DCRenderTarget*)dcRenderTarget, hdc, ref rect);
         if (hr < 0)
         {
             ComHelpers.Release(dcRenderTarget);
             throw new InvalidOperationException($"ID2D1DCRenderTarget::BindDC failed: 0x{hr:X8}");
         }
 
-        // DCRenderTarget is created per-frame for layered window presentation. COM can reuse pointer
-        // values across instances, so we must provide a monotonically increasing generation token
-        // to ensure per-render-target resources (e.g., Direct2DImage bitmaps) are not reused across
-        // different render target domains.
         int generation = Interlocked.Increment(ref _dcRenderTargetGeneration);
+        lock (_rtLock)
+        {
+            _cachedDcTargets[hdc] = (dcRenderTarget, generation, target.PixelWidth, target.PixelHeight);
+        }
         return (dcRenderTarget, generation);
     }
 
@@ -450,6 +475,12 @@ public sealed unsafe class Direct2DGraphicsFactory : IGraphicsFactory, IWindowRe
 
             if (_layeredTargets.Remove(hwnd, out var layered))
             {
+                // Release cached DC render target for this layered target's HDC
+                if (layered is IWin32HdcSource hdcSource && _cachedDcTargets.Remove(hdcSource.Hdc, out var dcEntry))
+                {
+                    ComHelpers.Release(dcEntry.RenderTarget);
+                }
+
                 layered.Dispose();
             }
         }
