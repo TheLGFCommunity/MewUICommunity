@@ -378,6 +378,32 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     public static readonly MewProperty<bool> UseLayoutRoundingProperty =
         MewProperty<bool>.Register<Window>(nameof(UseLayoutRounding), true, MewPropertyOptions.None);
 
+    public static readonly MewProperty<bool> IsActiveProperty =
+        MewProperty<bool>.Register<Window>(nameof(IsActive), false, MewPropertyOptions.AffectsRender);
+
+    public static readonly MewProperty<WindowState> WindowStateProperty =
+        MewProperty<WindowState>.Register<Window>(nameof(WindowState), WindowState.Normal, MewPropertyOptions.None,
+            static (self, _, newValue) => self.OnWindowStateChanged(newValue));
+
+    public static readonly MewProperty<bool> CanMinimizeProperty =
+        MewProperty<bool>.Register<Window>(nameof(CanMinimize), true, MewPropertyOptions.None,
+            static (self, _, _) => self._backend?.SetCanMinimize(self.CanMinimize));
+
+    public static readonly MewProperty<bool> CanMaximizeProperty =
+        MewProperty<bool>.Register<Window>(nameof(CanMaximize), true, MewPropertyOptions.None,
+            static (self, _, _) => self._backend?.SetCanMaximize(self.CanMaximize));
+
+    public static readonly MewProperty<bool> CanCloseProperty =
+        MewProperty<bool>.Register<Window>(nameof(CanClose), true, MewPropertyOptions.None);
+
+    public static readonly MewProperty<bool> TopmostProperty =
+        MewProperty<bool>.Register<Window>(nameof(Topmost), false, MewPropertyOptions.None,
+            static (self, _, _) => self._backend?.SetTopmost(self.Topmost));
+
+    public static readonly MewProperty<bool> ShowInTaskbarProperty =
+        MewProperty<bool>.Register<Window>(nameof(ShowInTaskbar), true, MewPropertyOptions.None,
+            static (self, _, _) => self._backend?.SetShowInTaskbar(self.ShowInTaskbar));
+
     /// <summary>
     /// Gets or sets the window title.
     /// </summary>
@@ -497,7 +523,125 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     /// <summary>
     /// Gets whether the window is currently active.
     /// </summary>
-    public bool IsActive { get; private set; }
+    public bool IsActive
+    {
+        get => GetValue(IsActiveProperty);
+        private set => SetValue(IsActiveProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the window display state.
+    /// </summary>
+    public WindowState WindowState
+    {
+        get => GetValue(WindowStateProperty);
+        set => SetValue(WindowStateProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the minimize button is enabled. Default is true.
+    /// </summary>
+    public bool CanMinimize
+    {
+        get => GetValue(CanMinimizeProperty);
+        set => SetValue(CanMinimizeProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the maximize button is enabled. Default is true.
+    /// </summary>
+    public bool CanMaximize
+    {
+        get => GetValue(CanMaximizeProperty);
+        set => SetValue(CanMaximizeProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the window can be closed. Default is true.
+    /// When false, the close button in the native chrome is disabled.
+    /// </summary>
+    public bool CanClose
+    {
+        get => GetValue(CanCloseProperty);
+        set => SetValue(CanCloseProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the window stays on top of other windows.
+    /// </summary>
+    public bool Topmost
+    {
+        get => GetValue(TopmostProperty);
+        set => SetValue(TopmostProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the window appears in the taskbar.
+    /// </summary>
+    public bool ShowInTaskbar
+    {
+        get => GetValue(ShowInTaskbarProperty);
+        set => SetValue(ShowInTaskbarProperty, value);
+    }
+
+    /// <summary>
+    /// Gets the window bounds before it was minimized or maximized.
+    /// </summary>
+    public Rect RestoreBounds { get; private set; }
+
+    /// <summary>Minimizes the window.</summary>
+    public void Minimize() => WindowState = WindowState.Minimized;
+
+    /// <summary>Maximizes the window.</summary>
+    public void Maximize() => WindowState = WindowState.Maximized;
+
+    /// <summary>Restores the window to its normal state.</summary>
+    public void Restore() => WindowState = WindowState.Normal;
+
+    /// <summary>
+    /// Initiates a window drag move using the platform's native mechanism.
+    /// Call this from a mouse down handler on a custom title bar element.
+    /// </summary>
+    public void DragMove() => _backend?.BeginDragMove();
+
+    private bool _windowStateFromBackend;
+
+    private void OnWindowStateChanged(WindowState newState)
+    {
+        if (newState != WindowState.Normal && !_windowStateFromBackend)
+        {
+            RestoreBounds = new Rect(Position.X, Position.Y, ClientSize.Width, ClientSize.Height);
+        }
+
+        if (!_windowStateFromBackend)
+            _backend?.SetWindowState(newState);
+
+        WindowStateChanged?.Invoke(newState);
+        RequerySuggested();
+    }
+
+    /// <summary>
+    /// Called by backend when the window state changes externally (e.g. user drags from maximized, taskbar minimize).
+    /// </summary>
+    internal void SetWindowStateFromBackend(WindowState state)
+    {
+        if (state == WindowState) return;
+
+        if (state != WindowState.Normal && WindowState == WindowState.Normal)
+        {
+            RestoreBounds = new Rect(Position.X, Position.Y, ClientSize.Width, ClientSize.Height);
+        }
+
+        _windowStateFromBackend = true;
+        try
+        {
+            SetValue(WindowStateProperty, state);
+        }
+        finally
+        {
+            _windowStateFromBackend = false;
+        }
+    }
 
     /// <summary>
     /// Gets the current DPI value.
@@ -651,6 +795,11 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     /// Occurs when the client size changes.
     /// </summary>
     public event Action<Size>? ClientSizeChanged;
+
+    /// <summary>
+    /// Raised when <see cref="WindowState"/> changes.
+    /// </summary>
+    public event Action<WindowState>? WindowStateChanged;
 
     /// <summary>
     /// Occurs when the DPI changes.

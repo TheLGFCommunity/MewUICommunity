@@ -287,6 +287,13 @@ internal static unsafe class MacOSInterop
         return ObjC.MsgSend_bool(nsWindow, SelIsVisible);
     }
 
+    public static bool IsWindowMiniaturized(nint nsWindow)
+    {
+        if (nsWindow == 0)
+            return false;
+        return ObjC.MsgSend_bool(nsWindow, ObjC.Sel("isMiniaturized"));
+    }
+
     public static bool IsWindowInLiveResize(nint nsWindow)
     {
         EnsureApplicationInitialized();
@@ -995,6 +1002,9 @@ internal static unsafe partial class ObjC
     private static partial void objc_msgSendSuper_void(ref objc_super super, nint selector);
 
     [LibraryImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSendSuper")]
+    private static partial void objc_msgSendSuper_void_nint(ref objc_super super, nint selector, nint arg);
+
+    [LibraryImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSendSuper")]
     private static partial void objc_msgSendSuper_void_rect(ref objc_super super, nint selector, NSRect rect);
 
     [LibraryImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
@@ -1074,6 +1084,9 @@ internal static unsafe partial class ObjC
 
     [LibraryImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
     private static partial void objc_msgSend_void_rect(nint receiver, nint selector, NSRect rect);
+
+    [LibraryImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
+    private static partial void objc_msgSend_void_rect_byte(nint receiver, nint selector, NSRect rect, byte flag);
 
     [LibraryImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
     private static partial nint objc_msgSend_nint_size(nint receiver, nint selector, NSSize size);
@@ -1179,6 +1192,9 @@ internal static unsafe partial class ObjC
     public static void MsgSendSuper_void(ref objc_super super, nint selector)
         => objc_msgSendSuper_void(ref super, selector);
 
+    public static void MsgSendSuper_void_nint(ref objc_super super, nint selector, nint arg)
+        => objc_msgSendSuper_void_nint(ref super, selector, arg);
+
     public static void MsgSendSuper_void_rect(ref objc_super super, nint selector, NSRect rect)
         => objc_msgSendSuper_void_rect(ref super, selector, rect);
 
@@ -1240,6 +1256,9 @@ internal static unsafe partial class ObjC
 
     public static void MsgSend_void_nint_rect(nint receiver, nint selector, NSRect rect)
         => objc_msgSend_void_rect(receiver, selector, rect);
+
+    public static void MsgSend_void_nint_rect_bool(nint receiver, nint selector, NSRect rect, bool flag)
+        => objc_msgSend_void_rect_byte(receiver, selector, rect, flag ? (byte)1 : (byte)0);
 
     public static nint MsgSend_nint_nint_nint_nint_bool(nint receiver, nint selector, nint mask, nint untilDate, nint mode, bool dequeue)
     {

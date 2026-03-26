@@ -113,7 +113,133 @@ internal sealed class X11WindowBackend : IWindowBackend
 
     public void Hide()
     {
-        // TODO: XUnmapWindow
+        if (Display != 0 && Handle != 0)
+            NativeX11.XUnmapWindow(Display, Handle);
+    }
+
+    public void BeginDragMove()
+    {
+        if (Display == 0 || Handle == 0) return;
+
+        // Release any grab, then send _NET_WM_MOVERESIZE to the window manager
+        NativeX11.XUngrabPointer(Display, 0);
+
+        var moveResize = NativeX11.XInternAtom(Display, "_NET_WM_MOVERESIZE", false);
+        if (moveResize == 0) return;
+
+        // Query pointer for current position
+        NativeX11.XQueryPointer(Display, NativeX11.XRootWindow(Display, 0),
+            out _, out _, out int rootX, out int rootY, out _, out _, out _);
+
+        var xev = new XEvent();
+        unsafe
+        {
+            xev.xclient.type = 33; // ClientMessage
+            xev.xclient.window = Handle;
+            xev.xclient.message_type = moveResize;
+            xev.xclient.format = 32;
+            xev.xclient.data[0] = rootX;
+            xev.xclient.data[1] = rootY;
+            xev.xclient.data[2] = 8; // _NET_WM_MOVERESIZE_MOVE
+            xev.xclient.data[3] = 1; // Button1
+            xev.xclient.data[4] = 1; // source = normal app
+        }
+        NativeX11.XSendEvent(Display, NativeX11.XRootWindow(Display, 0),
+            false, (nint)0x180000, ref xev);
+        NativeX11.XFlush(Display);
+    }
+
+    public void SetWindowState(Controls.WindowState state)
+    {
+        if (Display == 0 || Handle == 0) return;
+
+        switch (state)
+        {
+            case Controls.WindowState.Minimized:
+                NativeX11.XIconifyWindow(Display, Handle, 0);
+                break;
+            case Controls.WindowState.Maximized:
+                SendNetWmState(true, "_NET_WM_STATE_MAXIMIZED_HORZ", "_NET_WM_STATE_MAXIMIZED_VERT");
+                break;
+            case Controls.WindowState.Normal:
+                SendNetWmState(false, "_NET_WM_STATE_MAXIMIZED_HORZ", "_NET_WM_STATE_MAXIMIZED_VERT");
+                NativeX11.XMapWindow(Display, Handle);
+                break;
+        }
+    }
+
+    private uint _motifFunctions = 0x3F; // MWM_FUNC_ALL | RESIZE | MOVE | MINIMIZE | MAXIMIZE | CLOSE
+
+    public void SetCanMinimize(bool value)
+    {
+        if (Display == 0 || Handle == 0) return;
+        if (value) _motifFunctions |= 0x08; // MWM_FUNC_MINIMIZE
+        else _motifFunctions &= ~0x08u;
+        ApplyMotifHints();
+    }
+
+    public void SetCanMaximize(bool value)
+    {
+        if (Display == 0 || Handle == 0) return;
+        if (value) _motifFunctions |= 0x10; // MWM_FUNC_MAXIMIZE
+        else _motifFunctions &= ~0x10u;
+        ApplyMotifHints();
+    }
+
+    private void ApplyMotifHints()
+    {
+        var atom = NativeX11.XInternAtom(Display, "_MOTIF_WM_HINTS", false);
+        if (atom == 0) return;
+
+        // _MOTIF_WM_HINTS: flags, functions, decorations, input_mode, status
+        // flags = MWM_HINTS_FUNCTIONS (1)
+        var hints = new long[] { 1, _motifFunctions, 0, 0, 0 };
+        unsafe
+        {
+            fixed (long* p = hints)
+            {
+                NativeX11.XChangeProperty(Display, Handle, atom, atom,
+                    32, 0 /* PropModeReplace */, (nint)p, 5);
+            }
+        }
+    }
+
+    public void SetTopmost(bool value)
+    {
+        if (Display == 0 || Handle == 0) return;
+        SendNetWmState(value, "_NET_WM_STATE_ABOVE");
+    }
+
+    public void SetShowInTaskbar(bool value)
+    {
+        if (Display == 0 || Handle == 0) return;
+        SendNetWmState(!value, "_NET_WM_STATE_SKIP_TASKBAR");
+    }
+
+    private void SendNetWmState(bool add, params string[] atoms)
+    {
+        var netWmState = NativeX11.XInternAtom(Display, "_NET_WM_STATE", false);
+        if (netWmState == 0) return;
+
+        foreach (var name in atoms)
+        {
+            var atom = NativeX11.XInternAtom(Display, name, false);
+            if (atom == 0) continue;
+
+            var xev = new XEvent();
+            unsafe
+            {
+                xev.xclient.type = 33; // ClientMessage
+                xev.xclient.window = Handle;
+                xev.xclient.message_type = netWmState;
+                xev.xclient.format = 32;
+                xev.xclient.data[0] = add ? 1 : 0; // _NET_WM_STATE_ADD=1, _NET_WM_STATE_REMOVE=0
+                xev.xclient.data[1] = atom;
+            }
+            NativeX11.XSendEvent(Display, NativeX11.XRootWindow(Display, 0),
+                false, (nint)0x180000 /* SubstructureRedirect | SubstructureNotify */, ref xev);
+        }
+        NativeX11.XFlush(Display);
     }
 
     public void Close()

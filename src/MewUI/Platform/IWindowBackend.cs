@@ -32,6 +32,36 @@ public interface IWindowBackend : IDisposable
     void Close();
 
     /// <summary>
+    /// Sets the window display state (Normal, Minimized, Maximized).
+    /// </summary>
+    void SetWindowState(Controls.WindowState state) { }
+
+    /// <summary>
+    /// Enables or disables the minimize button in the native chrome.
+    /// </summary>
+    void SetCanMinimize(bool value) { }
+
+    /// <summary>
+    /// Enables or disables the maximize button in the native chrome.
+    /// </summary>
+    void SetCanMaximize(bool value) { }
+
+    /// <summary>
+    /// Sets whether the window stays on top of other windows.
+    /// </summary>
+    void SetTopmost(bool value) { }
+
+    /// <summary>
+    /// Sets whether the window appears in the taskbar.
+    /// </summary>
+    void SetShowInTaskbar(bool value) { }
+
+    /// <summary>
+    /// Initiates a window drag move operation using the platform's native mechanism.
+    /// </summary>
+    void BeginDragMove() { }
+
+    /// <summary>
     /// Invalidates the window so it will be repainted.
     /// </summary>
     /// <param name="erase">Whether the background should be erased (platform dependent).</param>

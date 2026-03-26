@@ -179,7 +179,10 @@ internal sealed class MacOSWindowBackend : IWindowBackend
         }
         if (_allowsTransparency)
         {
-            MacOSWindowInterop.SetWindowStyleMask(_nsWindow, 0ul);
+            MacOSWindowInterop.SetWindowStyleMask(_nsWindow, MacOSWindowInterop.TransparentStyleMask);
+            MacOSWindowInterop.SetTitlebarForTransparency(_nsWindow, true);
+            MacOSWindowInterop.HideDialogChromeButtons(_nsWindow);
+            MacOSWindowInterop.HideCloseButton(_nsWindow);
         }
         ApplyResolvedStartupPlacement();
         UpdateClientSizeIfNeeded(forceLayout: true);
@@ -190,19 +193,131 @@ internal sealed class MacOSWindowBackend : IWindowBackend
     }
 
     public void Hide()
-    { }
+    {
+        if (_nsWindow != 0)
+            ObjC.MsgSend_void_nint_nint(_nsWindow, ObjC.Sel("orderOut:"), 0);
+    }
+
+    internal bool _closingFromCode;
 
     public void Close()
     {
         if (_nsWindow != 0)
         {
-            // Programmatic close: check cancel first
-            if (!_window.RequestClose(fromBackend: false))
-                return;
+            _closingFromCode = true;
             MacOSWindowInterop.CloseWindow(_nsWindow);
-            RaiseClosedOnce();
+            // windowShouldClose/windowWillClose will call RaiseClosedOnce
         }
     }
+
+    public void SetTopmost(bool value)
+    {
+        if (_nsWindow == 0) return;
+        // NSFloatingWindowLevel = 3, NSNormalWindowLevel = 0
+        ObjC.MsgSend_void_nint_int(_nsWindow, ObjC.Sel("setLevel:"), value ? 3 : 0);
+    }
+
+    public void SetCanMinimize(bool value)
+    {
+        if (_nsWindow == 0) return;
+
+        // Toggle NSWindowStyleMaskMiniaturizable (1 << 2 = 4) in styleMask
+        ulong mask = ObjC.MsgSend_ulong(_nsWindow, ObjC.Sel("styleMask"));
+        const ulong NSWindowStyleMaskMiniaturizable = 4;
+        mask = value ? (mask | NSWindowStyleMaskMiniaturizable) : (mask & ~NSWindowStyleMaskMiniaturizable);
+        ObjC.MsgSend_void_nint_ulong(_nsWindow, ObjC.Sel("setStyleMask:"), mask);
+
+        // Also enable/disable the miniaturize button
+        var btn = ObjC.MsgSend_nint_ulong(_nsWindow, ObjC.Sel("standardWindowButton:"), 1);
+        if (btn != 0)
+            ObjC.MsgSend_void_nint_bool(btn, ObjC.Sel("setEnabled:"), value);
+    }
+
+    public void SetCanMaximize(bool value)
+    {
+        if (_nsWindow == 0) return;
+
+        // Enable/disable the zoom button (standardWindowButton: 2)
+        var btn = ObjC.MsgSend_nint_ulong(_nsWindow, ObjC.Sel("standardWindowButton:"), 2);
+        if (btn != 0)
+            ObjC.MsgSend_void_nint_bool(btn, ObjC.Sel("setEnabled:"), value);
+    }
+
+    public void SetShowInTaskbar(bool value)
+    {
+        if (_nsWindow == 0) return;
+
+        // macOS doesn't have a direct ShowInTaskbar concept.
+        // The closest approximation is toggling NSWindowCollectionBehaviorStationary.
+        const ulong NSWindowCollectionBehaviorStationary = 1 << 4; // 16
+        ulong behavior = ObjC.MsgSend_ulong(_nsWindow, ObjC.Sel("collectionBehavior"));
+        behavior = value ? (behavior & ~NSWindowCollectionBehaviorStationary) : (behavior | NSWindowCollectionBehaviorStationary);
+        ObjC.MsgSend_void_nint_ulong(_nsWindow, ObjC.Sel("setCollectionBehavior:"), behavior);
+    }
+
+    public void BeginDragMove()
+    {
+        if (_nsWindow == 0) return;
+
+        // [NSApp currentEvent] → [window performWindowDragWithEvent:]
+        var nsApp = ObjC.MsgSend_nint(ObjC.GetClass("NSApplication"), ObjC.Sel("sharedApplication"));
+        if (nsApp == 0) return;
+        var currentEvent = ObjC.MsgSend_nint(nsApp, ObjC.Sel("currentEvent"));
+        if (currentEvent == 0) return;
+        ObjC.MsgSend_void_nint_nint(_nsWindow, ObjC.Sel("performWindowDragWithEvent:"), currentEvent);
+    }
+
+    private NSRect _restoreFrame;
+
+    public void SetWindowState(Controls.WindowState state)
+    {
+        if (_nsWindow == 0) return;
+
+        switch (state)
+        {
+            case Controls.WindowState.Minimized:
+                // MewUIWindow.miniaturize: override handles styleMask temporarily
+                ObjC.MsgSend_void_nint_nint(_nsWindow, ObjC.Sel("miniaturize:"), 0);
+                break;
+            case Controls.WindowState.Maximized:
+                if (_allowsTransparency)
+                {
+                    // Borderless window: manual maximize using screen visibleFrame
+                    _restoreFrame = ObjC.MsgSend_rect(_nsWindow, ObjC.Sel("frame"));
+                    var screen = ObjC.MsgSend_nint(_nsWindow, ObjC.Sel("screen"));
+                    if (screen != 0)
+                    {
+                        var visibleFrame = ObjC.MsgSend_rect(screen, ObjC.Sel("visibleFrame"));
+                        ObjC.MsgSend_void_nint_rect_bool(_nsWindow, ObjC.Sel("setFrame:display:"), visibleFrame, true);
+                    }
+                }
+                else if (!IsZoomed())
+                {
+                    ObjC.MsgSend_void_nint_nint(_nsWindow, ObjC.Sel("zoom:"), 0);
+                }
+                break;
+            case Controls.WindowState.Normal:
+                if (ObjC.MsgSend_bool(_nsWindow, ObjC.Sel("isMiniaturized")))
+                {
+                    ObjC.MsgSend_void_nint_nint(_nsWindow, ObjC.Sel("deminiaturize:"), 0);
+                    ObjC.MsgSend_void_nint_nint(_nsWindow, ObjC.Sel("makeKeyAndOrderFront:"), 0);
+                    _window.Invalidate();
+                }
+                else if (_allowsTransparency)
+                {
+                    // Restore from manual maximize
+                    if (_restoreFrame.size.width > 0 && _restoreFrame.size.height > 0)
+                        ObjC.MsgSend_void_nint_rect_bool(_nsWindow, ObjC.Sel("setFrame:display:"), _restoreFrame, true);
+                }
+                else if (IsZoomed())
+                {
+                    ObjC.MsgSend_void_nint_nint(_nsWindow, ObjC.Sel("zoom:"), 0);
+                }
+                break;
+        }
+    }
+
+    private bool IsZoomed() => ObjC.MsgSend_bool(_nsWindow, ObjC.Sel("isZoomed"));
 
     public void Invalidate(bool erase)
     {
@@ -427,7 +542,7 @@ internal sealed class MacOSWindowBackend : IWindowBackend
         if (_nsWindow != 0)
         {
             MacOSWindowInterop.SetWindowTransparency(_nsWindow, _nsView, _allowsTransparency);
-            MacOSWindowInterop.SetWindowStyleMask(_nsWindow, _allowsTransparency ? 0ul : _defaultStyleMask);
+            MacOSWindowInterop.SetWindowStyleMask(_nsWindow, _allowsTransparency ? MacOSWindowInterop.TransparentStyleMask : _defaultStyleMask);
             MacOSWindowInterop.SetTitlebarForTransparency(_nsWindow, _allowsTransparency);
             if (_nsContext != 0)
             {
@@ -604,7 +719,7 @@ internal sealed class MacOSWindowBackend : IWindowBackend
             _defaultStyleMask = MacOSWindowInterop.GetWindowStyleMask(_nsWindow);
             MacOSWindowInterop.SetWindowOpacity(_nsWindow, _opacity);
             MacOSWindowInterop.SetWindowTransparency(_nsWindow, _nsView, _allowsTransparency);
-            MacOSWindowInterop.SetWindowStyleMask(_nsWindow, _allowsTransparency ? 0ul : _defaultStyleMask);
+            MacOSWindowInterop.SetWindowStyleMask(_nsWindow, _allowsTransparency ? MacOSWindowInterop.TransparentStyleMask : _defaultStyleMask);
             MacOSWindowInterop.SetTitlebarForTransparency(_nsWindow, _allowsTransparency);
             if (_nsContext != 0)
             {
@@ -1796,6 +1911,7 @@ internal static unsafe class MacOSWindowInterop
     private static nint ClsNSObject;
     private static nint ClsMewUIMetalLayerDelegate;
     private static nint _sharedMetalLayerDelegate;
+    private static nint ClsMewUIWindow;
     private static nint ClsMewUIWindowDelegate;
     private static nint _sharedWindowDelegate;
     private static readonly Dictionary<nint, WeakReference<MacOSWindowBackend>> _windowCloseTargets = new();
@@ -1815,6 +1931,11 @@ internal static unsafe class MacOSWindowInterop
 
     // NSWindowStyleMaskTitled | Closable | Miniaturizable | Resizable
     private const ulong DefaultStyleMask = 1ul | 2ul | 4ul | 8ul;
+
+    // Titled | Closable | Miniaturizable | Resizable | FullSizeContentView
+    // Visually borderless via titlebarAppearsTransparent + hidden buttons,
+    // but retains miniaturize/zoom functionality and render surface stability.
+    internal const ulong TransparentStyleMask = 1ul | 2ul | 4ul | 8ul | (1ul << 15);
 
     // NSWindowStyleMaskTitled | Closable
     private const ulong DialogStyleMask = 1ul | 2ul;
@@ -3285,28 +3406,89 @@ internal static unsafe class MacOSWindowInterop
     }
 
     [UnmanagedCallersOnly]
+    private static byte MewUIWindow_canBecomeKeyWindow(nint self, nint sel) => 1;
+
+    [UnmanagedCallersOnly]
+    private static byte MewUIWindow_canBecomeMainWindow(nint self, nint sel) => 1;
+
+    // MewUIWindow_miniaturize override no longer needed — TransparentStyleMask includes Miniaturizable.
+
+    [UnmanagedCallersOnly]
     private static byte MewUIWindowDelegate_windowShouldClose(nint self, nint sel, nint sender)
     {
         try
         {
             if (sender == 0)
-                return 1; // allow close
+                return 1;
 
             if (TryGetWindowCloseTarget(sender, out var backend))
             {
+                // Programmatic close already passed cancel check — allow unconditionally
+                if (backend._closingFromCode)
+                    return 1;
+
                 if (!backend.Window.RequestClose(fromBackend: true))
                     return 0; // cancelled
 
                 backend.RaiseClosedOnce();
             }
 
-            return 1; // allow close
+            return 1;
         }
         catch
         {
             // Never let an exception cross the unmanaged boundary.
             return 1;
         }
+    }
+
+    [UnmanagedCallersOnly]
+    private static void MewUIWindowDelegate_windowDidBecomeKey(nint self, nint sel, nint notification)
+    {
+        try
+        {
+            if (notification == 0) return;
+            nint window = GetWindowFromNotification(notification);
+            if (window != 0 && TryGetWindowCloseTarget(window, out var backend))
+            {
+                backend.Window.SetIsActive(true);
+                backend.Window.RaiseActivated();
+            }
+        }
+        catch { }
+    }
+
+    [UnmanagedCallersOnly]
+    private static void MewUIWindowDelegate_windowDidDeminiaturize(nint self, nint sel, nint notification)
+    {
+        try
+        {
+            if (notification == 0) return;
+            nint window = GetWindowFromNotification(notification);
+            if (window != 0 && TryGetWindowCloseTarget(window, out var backend))
+            {
+                ObjC.MsgSend_void_nint_nint(window, ObjC.Sel("makeKeyAndOrderFront:"), 0);
+                backend.Window.PerformLayout();
+                backend.Invalidate(erase: true);
+            }
+        }
+        catch { }
+    }
+
+    [UnmanagedCallersOnly]
+    private static void MewUIWindowDelegate_windowDidResignKey(nint self, nint sel, nint notification)
+    {
+        try
+        {
+            if (notification == 0) return;
+            nint window = GetWindowFromNotification(notification);
+            if (window != 0 && TryGetWindowCloseTarget(window, out var backend))
+            {
+                backend.Window.SetIsActive(false);
+                backend.Window.RaiseDeactivated();
+            }
+        }
+        catch { }
     }
 
     [UnmanagedCallersOnly]
@@ -3328,6 +3510,31 @@ internal static unsafe class MacOSWindowInterop
         {
             // Never let an exception cross the unmanaged boundary.
         }
+    }
+
+    private static void EnsureMewUIWindowClass()
+    {
+        if (ClsMewUIWindow != 0) return;
+        if (ClsNSWindow == 0) return;
+
+        const string className = "MewUIWindow";
+        var cls = ObjC.GetClass(className);
+        if (cls == 0)
+        {
+            cls = ObjC.AllocateClassPair(ClsNSWindow, className);
+            if (cls != 0)
+            {
+                var imp = (nint)(delegate* unmanaged<nint, nint, byte>)&MewUIWindow_canBecomeKeyWindow;
+                _ = ObjC.AddMethod(cls, ObjC.Sel("canBecomeKeyWindow"), imp, "c@:");
+
+                var mainImp = (nint)(delegate* unmanaged<nint, nint, byte>)&MewUIWindow_canBecomeMainWindow;
+                _ = ObjC.AddMethod(cls, ObjC.Sel("canBecomeMainWindow"), mainImp, "c@:");
+
+                ObjC.RegisterClassPair(cls);
+            }
+        }
+
+        ClsMewUIWindow = cls;
     }
 
     private static void EnsureWindowDelegate()
@@ -3359,6 +3566,15 @@ internal static unsafe class MacOSWindowInterop
 
                 var willCloseImp = (nint)(delegate* unmanaged<nint, nint, nint, void>)&MewUIWindowDelegate_windowWillClose;
                 _ = ObjC.AddMethod(cls, SelWindowWillClose, willCloseImp, "v@:@");
+
+                var becomeKeyImp = (nint)(delegate* unmanaged<nint, nint, nint, void>)&MewUIWindowDelegate_windowDidBecomeKey;
+                _ = ObjC.AddMethod(cls, ObjC.Sel("windowDidBecomeKey:"), becomeKeyImp, "v@:@");
+
+                var resignKeyImp = (nint)(delegate* unmanaged<nint, nint, nint, void>)&MewUIWindowDelegate_windowDidResignKey;
+                _ = ObjC.AddMethod(cls, ObjC.Sel("windowDidResignKey:"), resignKeyImp, "v@:@");
+
+                var deminiaturizeImp = (nint)(delegate* unmanaged<nint, nint, nint, void>)&MewUIWindowDelegate_windowDidDeminiaturize;
+                _ = ObjC.AddMethod(cls, ObjC.Sel("windowDidDeminiaturize:"), deminiaturizeImp, "v@:@");
 
                 ObjC.RegisterClassPair(cls);
             }
@@ -3428,14 +3644,27 @@ internal static unsafe class MacOSWindowInterop
     public static nint CreateWindow(string title, double widthDip, double heightDip, bool allowsTransparency, bool isDialog)
     {
         EnsureInitialized();
-        var win = ObjC.MsgSend_nint(ClsNSWindow, SelAlloc);
+
+        // Borderless windows (AllowsTransparency) need MewUIWindow subclass for canBecomeKeyWindow
+        nint windowClass;
+        if (allowsTransparency)
+        {
+            EnsureMewUIWindowClass();
+            windowClass = ClsMewUIWindow != 0 ? ClsMewUIWindow : ClsNSWindow;
+        }
+        else
+        {
+            windowClass = ClsNSWindow;
+        }
+
+        var win = ObjC.MsgSend_nint(windowClass, SelAlloc);
         if (win == 0)
         {
             return 0;
         }
 
         var rect = new NSRect(0, 0, widthDip, heightDip);
-        ulong styleMask = allowsTransparency ? 0ul : (isDialog ? DialogStyleMask : DefaultStyleMask);
+        ulong styleMask = allowsTransparency ? TransparentStyleMask : (isDialog ? DialogStyleMask : DefaultStyleMask);
         win = ObjC.MsgSend_nint_rect_ulong_int_bool(win, SelInitWithContentRect, rect, styleMask, NSBackingStoreBuffered, false);
         if (win == 0)
         {

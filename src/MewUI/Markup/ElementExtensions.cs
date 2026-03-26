@@ -137,6 +137,15 @@ public static class ElementExtensions
     }
 
     /// <summary>
+    /// Subscribes to <see cref="Window.WindowStateChanged"/>.
+    /// </summary>
+    public static T OnWindowStateChanged<T>(this T window, Action<WindowState> handler) where T : Window
+    {
+        window.WindowStateChanged += handler;
+        return window;
+    }
+
+    /// <summary>
     /// Not supported on <see cref="Window"/>. Use <see cref="Resizable"/> or assign <see cref="Window.WindowSize"/> directly.
     /// </summary>
     [Obsolete("Use .Resizable(w, h, minWidth: ...) or assign WindowSize directly.", error: true)]

@@ -47,7 +47,24 @@ internal static partial class X11
     public static partial void XMapWindow(nint display, nint window);
 
     [LibraryImport(LibraryName)]
+    public static partial void XUnmapWindow(nint display, nint window);
+
+    [LibraryImport(LibraryName)]
+    public static partial int XIconifyWindow(nint display, nint window, int screenNumber);
+
+    [LibraryImport(LibraryName)]
     public static partial int XRaiseWindow(nint display, nint window);
+
+    [LibraryImport(LibraryName)]
+    public static partial int XUngrabPointer(nint display, nint time);
+
+    [LibraryImport(LibraryName)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool XQueryPointer(nint display, nint window,
+        out nint rootReturn, out nint childReturn,
+        out int rootX, out int rootY,
+        out int winX, out int winY,
+        out uint mask);
 
     [LibraryImport(LibraryName)]
     public static partial int XMoveWindow(nint display, nint window, int x, int y);

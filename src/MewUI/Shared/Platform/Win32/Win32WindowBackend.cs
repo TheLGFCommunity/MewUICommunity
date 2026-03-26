@@ -94,6 +94,98 @@ internal sealed class Win32WindowBackend : IWindowBackend
         }
     }
 
+    public void BeginDragMove()
+    {
+        if (Handle == 0) return;
+        User32.ReleaseCapture();
+        _ = User32.SendMessage(Handle, WindowMessages.WM_NCLBUTTONDOWN, (nint)2 /* HTCAPTION */, 0);
+    }
+
+    public void SetWindowState(Controls.WindowState state)
+    {
+        if (Handle == 0) return;
+
+        var cmd = state switch
+        {
+            Controls.WindowState.Minimized => ShowWindowCommands.SW_MINIMIZE,
+            Controls.WindowState.Maximized => ShowWindowCommands.SW_MAXIMIZE,
+            _ => ShowWindowCommands.SW_RESTORE,
+        };
+        User32.ShowWindow(Handle, cmd);
+    }
+
+    public void SetCanMinimize(bool value)
+    {
+        if (Handle == 0) return;
+
+        const int GWL_STYLE = -16;
+        const uint WS_MINIMIZEBOX = 0x00020000;
+        const uint SWP_NOSIZE = 0x0001;
+        const uint SWP_NOMOVE = 0x0002;
+        const uint SWP_NOZORDER = 0x0004;
+        const uint SWP_FRAMECHANGED = 0x0020;
+
+        uint style = (uint)User32.GetWindowLongPtr(Handle, GWL_STYLE).ToInt64();
+        style = value ? (style | WS_MINIMIZEBOX) : (style & ~WS_MINIMIZEBOX);
+        User32.SetWindowLongPtr(Handle, GWL_STYLE, (nint)style);
+        User32.SetWindowPos(Handle, 0, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
+    }
+
+    public void SetCanMaximize(bool value)
+    {
+        if (Handle == 0) return;
+
+        const int GWL_STYLE = -16;
+        const uint WS_MAXIMIZEBOX = 0x00010000;
+        const uint SWP_NOSIZE = 0x0001;
+        const uint SWP_NOMOVE = 0x0002;
+        const uint SWP_NOZORDER = 0x0004;
+        const uint SWP_FRAMECHANGED = 0x0020;
+
+        uint style = (uint)User32.GetWindowLongPtr(Handle, GWL_STYLE).ToInt64();
+        style = value ? (style | WS_MAXIMIZEBOX) : (style & ~WS_MAXIMIZEBOX);
+        User32.SetWindowLongPtr(Handle, GWL_STYLE, (nint)style);
+        User32.SetWindowPos(Handle, 0, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
+    }
+
+    public void SetTopmost(bool value)
+    {
+        if (Handle == 0) return;
+
+        const uint SWP_NOMOVE = 0x0002;
+        const uint SWP_NOSIZE = 0x0001;
+        const uint SWP_NOACTIVATE = 0x0010;
+
+        User32.SetWindowPos(Handle, value ? -1 : -2, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+
+    public void SetShowInTaskbar(bool value)
+    {
+        if (Handle == 0) return;
+
+        const int GWL_EXSTYLE = -20;
+        const uint WS_EX_APPWINDOW = 0x00040000;
+        const uint WS_EX_TOOLWINDOW = 0x00000080;
+        const uint SWP_NOSIZE = 0x0001;
+        const uint SWP_NOMOVE = 0x0002;
+        const uint SWP_NOZORDER = 0x0004;
+        const uint SWP_FRAMECHANGED = 0x0020;
+
+        uint exStyle = (uint)User32.GetWindowLongPtr(Handle, GWL_EXSTYLE).ToInt64();
+        if (value)
+        {
+            exStyle |= WS_EX_APPWINDOW;
+            exStyle &= ~WS_EX_TOOLWINDOW;
+        }
+        else
+        {
+            exStyle |= WS_EX_TOOLWINDOW;
+            exStyle &= ~WS_EX_APPWINDOW;
+        }
+        User32.SetWindowLongPtr(Handle, GWL_EXSTYLE, (nint)exStyle);
+        User32.SetWindowPos(Handle, 0, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
+    }
+
     public void Close()
     {
         if (Handle != 0)
@@ -315,6 +407,16 @@ internal sealed class Win32WindowBackend : IWindowBackend
             case WindowMessages.WM_PAINT:
                 return HandlePaint();
 
+            case WindowMessages.WM_ENTERSIZEMOVE:
+                if (_allowsTransparency)
+                    User32.SetTimer(Handle, 1, 16, 0); // ~60fps render during drag/resize
+                return 0;
+
+            case WindowMessages.WM_EXITSIZEMOVE:
+                if (_allowsTransparency)
+                    User32.KillTimer(Handle, 1);
+                return 0;
+
             case WindowMessages.WM_ERASEBKGND:
                 return HandleEraseBackground(wParam);
 
@@ -322,7 +424,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
                 return HandleGetMinMaxInfo(lParam);
 
             case WindowMessages.WM_SIZE:
-                return HandleSize(lParam);
+                return HandleSize(wParam, lParam);
 
             case WindowMessages.WM_DPICHANGED:
                 return HandleDpiChanged(wParam, lParam);
@@ -411,6 +513,13 @@ internal sealed class Win32WindowBackend : IWindowBackend
                 return 0;
 
             case WindowMessages.WM_TIMER:
+                if (wParam == 1 && _allowsTransparency)
+                {
+                    Window.Invalidate();
+                    RenderIfNeeded();
+                    return 0;
+                }
+
                 if ((Window.ApplicationDispatcher as Win32Dispatcher)?.ProcessTimer((nuint)wParam) == true)
                 {
                     return 0;
@@ -1180,7 +1289,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
         return 0;
     }
 
-    private nint HandleSize(nint lParam)
+    private nint HandleSize(nint wParam, nint lParam)
     {
         int widthPx = (short)(lParam.ToInt64() & 0xFFFF);
         int heightPx = (short)((lParam.ToInt64() >> 16) & 0xFFFF);
@@ -1188,6 +1297,21 @@ internal sealed class Win32WindowBackend : IWindowBackend
         Window.SetClientSizeDip(widthPx / Window.DpiScale, heightPx / Window.DpiScale);
         Window.PerformLayout();
         Window.Invalidate();
+
+        // Notify WindowState change from OS (e.g. user drags from maximized, snap, taskbar minimize)
+        const int SIZE_MINIMIZED = 1;
+        const int SIZE_MAXIMIZED = 2;
+        const int SIZE_RESTORED = 0;
+        int sizeType = (int)wParam;
+        var newState = sizeType switch
+        {
+            SIZE_MINIMIZED => Controls.WindowState.Minimized,
+            SIZE_MAXIMIZED => Controls.WindowState.Maximized,
+            SIZE_RESTORED => Controls.WindowState.Normal,
+            _ => Window.WindowState,
+        };
+        if (newState != Window.WindowState)
+            Window.SetWindowStateFromBackend(newState);
 
         Window.RaiseClientSizeChanged(widthPx / Window.DpiScale, heightPx / Window.DpiScale);
         return 0;
@@ -1213,6 +1337,11 @@ internal sealed class Win32WindowBackend : IWindowBackend
         Window.RaiseDpiChanged(oldDpi, newDpi);
         Window.PerformLayout();
         Window.Invalidate();
+
+        // During modal move/size loop, the normal render pass doesn't run.
+        // Force an immediate render so the layered window updates at the new DPI.
+        if (_allowsTransparency)
+            RenderIfNeeded();
 
         return 0;
     }
