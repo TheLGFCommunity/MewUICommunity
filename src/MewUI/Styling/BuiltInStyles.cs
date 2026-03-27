@@ -81,6 +81,7 @@ public static class BuiltInStyles
             [
                 Setter.Create(Control.BackgroundProperty, t => t.Palette.Accent),
                 Setter.Create(Control.ForegroundProperty, t => t.Palette.AccentText),
+                Setter.Create(Control.BorderThicknessProperty, 0.0),
             ],
             Triggers =
             [

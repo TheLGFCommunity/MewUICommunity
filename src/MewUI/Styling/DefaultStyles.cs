@@ -127,6 +127,11 @@ public static class DefaultStyles
 
         Register(styles, CreateWindowStyle());
 
+        // Calendar
+        Register(styles, CreateControlBasedStyle(typeof(Calendar),
+            Setter.Create(Control.CornerRadiusProperty, t => t.Metrics.ControlCornerRadius),
+            Setter.Create(Control.BorderThicknessProperty, t => t.Metrics.ControlBorderThickness)));
+
         // Misc
         Register(styles, CreateBorderStyle());
 
