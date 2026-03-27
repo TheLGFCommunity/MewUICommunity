@@ -1,8 +1,10 @@
 # Data Binding Guide
 
-MewUI's data binding system is designed with a delegate-based approach without Reflection to be compatible with Native AOT.
+MewUI's data binding system uses a delegate-based, reflection-free approach compatible with Native AOT.
 
-## Core Concepts
+---
+
+## 1. Core Concepts
 
 ### Reflection-Free Binding
 
@@ -10,304 +12,191 @@ Unlike WPF/WinUI, MewUI does not use Reflection:
 
 | WPF Approach | MewUI Approach |
 |--------------|----------------|
-| `{Binding PropertyName}` | `.BindText(vm.PropertyName)` |
+| `{Binding PropertyName}` | `.BindText(vm.Name)` or `.Bind(property, source)` |
 | `INotifyPropertyChanged` | `ObservableValue<T>` |
-| PropertyPath strings | Direct lambda/delegate |
+| PropertyPath strings | Direct property references |
 
-Benefits of this approach:
-- **Native AOT Compatible**: Safe for trimming/AOT
-- **Compile-time Validation**: Prevents property name typos
-- **IntelliSense Support**: Auto-completion available
-- **Refactoring Safe**: Automatically reflects name changes
+Benefits:
+- **Native AOT Compatible**: safe for trimming/AOT
+- **Compile-time Validation**: prevents property name typos
+- **IntelliSense Support**: auto-completion available
+- **Refactoring Safe**: automatically reflects renames
+
+### Binding Modes
+
+```csharp
+public enum BindingMode
+{
+    OneWay,   // Source → Control only
+    TwoWay,  // Source ↔ Control (bidirectional)
+}
+```
+
+The default mode is determined by the property: input properties (e.g., `TextBox.TextProperty`) default to `TwoWay`, display properties (e.g., `Label.TextProperty`) default to `OneWay`.
 
 ---
 
-## ObservableValue\<T>
+## 2. ObservableValue\<T>
 
 A reactive value container that automatically updates the UI when the value changes.
 
 ### Basic Usage
 
 ```csharp
-// Creation
 var name = new ObservableValue<string>("Default");
 var count = new ObservableValue<int>(0);
 var isEnabled = new ObservableValue<bool>(true);
 
-// Read/Write values
-string currentName = name.Value;
+// Read/Write
+string current = name.Value;
 name.Value = "New Value";
 
-// Change detection
+// Change notification
 name.Changed += () => Console.WriteLine("Name changed!");
-```
-
-### Constructor Options
-
-```csharp
-public ObservableValue(
-    T initialValue = default!,      // Initial value
-    Func<T, T>? coerce = null,      // Value transform/constraint function
-    IEqualityComparer<T>? comparer = null  // Equality comparer
-)
 ```
 
 ### Coerce (Value Constraints)
 
-Automatically transforms values to a valid range when changed:
-
 ```csharp
-// Constrain to 0-100
 var percent = new ObservableValue<double>(50, v => Math.Clamp(v, 0, 100));
+percent.Value = 150;  // → 100
+percent.Value = -10;  // → 0
 
-percent.Value = 150;  // Automatically converted to 100
-percent.Value = -10;  // Automatically converted to 0
-
-// Prevent negative selection index
-var selectedIndex = new ObservableValue<int>(-1, v => Math.Max(-1, v));
-
-// String trim
 var text = new ObservableValue<string>("", v => v?.Trim() ?? "");
 ```
 
-### Methods
+---
 
-| Method | Description |
-|--------|-------------|
-| `Value { get; set; }` | Current value |
-| `Set(T value)` | Set value (returns true if changed) |
-| `NotifyChanged()` | Manually raise Changed event |
-| `Subscribe(Action)` | Subscribe to change event |
-| `Unsubscribe(Action)` | Unsubscribe from change event |
+## 3. Binding APIs
 
-### Events
+MewUI provides three levels of binding:
+
+### 3.1 Fluent extension methods (recommended)
+
+High-level, per-control convenience methods for common properties.
 
 ```csharp
-var counter = new ObservableValue<int>(0);
+var name = new ObservableValue<string>("");
+var count = new ObservableValue<int>(0);
+var isChecked = new ObservableValue<bool>(false);
 
-// Subscribe to event
-counter.Changed += OnCounterChanged; // Not typically used directly
+// Text binding (two-way for TextBox, one-way for Label)
+new TextBox().BindText(name)
+new Label().BindText(name)
 
-// Unsubscribe from event
-counter.Changed -= OnCounterChanged; // Not typically used directly
+// Conversion binding
+new Label().BindText(count, c => $"Count: {c}")
 
-void OnCounterChanged()
-{
-    Console.WriteLine($"Counter is now: {counter.Value}");
-}
+// CheckBox / ToggleSwitch
+new CheckBox().BindIsChecked(isChecked)
+
+// Slider / ProgressBar
+new Slider().BindValue(volume)
+
+// Visibility / Enabled
+new Button().BindIsVisible(isVisible).BindIsEnabled(isEnabled)
+```
+
+### 3.2 Generic Bind\<T> (MewProperty binding)
+
+Binds any `MewProperty<T>` to an `ObservableValue<T>`. Works on any `MewObject`.
+
+```csharp
+// Direct type binding
+element.Bind(Control.BackgroundProperty, colorSource)
+
+// With conversion
+element.Bind(Control.BackgroundProperty, temperatureSource,
+    convert: temp => temp > 30 ? Color.Red : Color.Blue)
+
+// With two-way conversion
+textBox.Bind(TextBase.TextProperty, intSource,
+    convert: i => i.ToString(),
+    convertBack: s => int.TryParse(s, out var v) ? v : 0)
+```
+
+### 3.3 SetBinding (low-level)
+
+The underlying API that fluent methods call. Use for custom controls or advanced scenarios.
+
+```csharp
+// ObservableValue binding
+element.SetBinding(property, source, mode: BindingMode.TwoWay);
+
+// With conversion
+element.SetBinding(property, source, convert, convertBack, mode);
+
+// MewObject-to-MewObject property binding
+// Binds a property on this object to a property on another MewObject.
+// Updates at the style (target) tier — local values still take precedence.
+element.SetBinding(TextBlock.TextProperty, otherElement, Window.TitleProperty);
 ```
 
 ---
 
-## Control Binding
-
-### One-Way Binding (Source → UI)
-
-When the value changes, the UI updates automatically:
-
-```csharp
-var message = new ObservableValue<string>("Hello");
-
-new Label()
-    .BindText(message)  // Label auto-updates when message changes
-
-// Value change → UI auto-reflects
-message.Value = "World";
-```
-
-### Two-Way Binding (Source ↔ UI)
-
-UI changes reflect to the source, and source changes reflect to the UI:
-
-```csharp
-var userName = new ObservableValue<string>("");
-
-new TextBox()
-    .BindText(userName)  // Two-way binding
-
-// Change from code → UI reflects
-userName.Value = "John";
-
-// Input from UI → Source reflects
-// (userName.Value auto-updates when user types in TextBox)
-```
-
-### Conversion Binding
-
-Displays values converted to a different format.
-
-**Function Signature Comparison:**
-```csharp
-// Regular binding - same type (ObservableValue<string> → string)
-Label BindText(
-    this Label label,
-    ObservableValue<string> source)
-
-// Conversion binding - different type (ObservableValue<T> → string)
-Label BindText<TSource>(
-    this Label label,
-    ObservableValue<TSource> source,    // Source type (int, decimal, User, etc.)
-    Func<TSource, string> convert)       // Convert function: TSource → string
-```
-
-| Category | Regular Binding | Conversion Binding |
-|----------|-----------------|-------------------|
-| Source Type | `ObservableValue<string>` | `ObservableValue<T>` (any type) |
-| Additional Parameter | None | `Func<T, string> convert` |
-| Use Case | Display string directly | Convert numbers, objects, etc. to string |
-
-**Usage Examples:**
-```csharp
-var count = new ObservableValue<int>(5);
-var price = new ObservableValue<decimal>(1234.56m);
-
-// int → string conversion
-new Label()
-    .BindText(count, c => $"Items: {c}")
-    //        ↑       ↑
-    //   source    converter: Func<int, string>
-
-// decimal → formatting
-new Label()
-    .BindText(price, p => p.ToString("C"))  // $1,234.56
-    //        ↑      ↑
-    //   source   converter: Func<decimal, string>
-
-// Complex conversion
-var user = new ObservableValue<User?>(null);
-new Label()
-    .BindText(user, u => u?.FullName ?? "Guest")
-    //        ↑     ↑
-    //   source  converter: Func<User?, string>
-```
-
----
-
-## Binding Methods by Control
+## 4. Binding Methods by Control
 
 ### Label
 
-| Method | Signature | Direction |
-|--------|-----------|-----------|
-| `BindText` | `Label BindText(ObservableValue<string> source)` | One-Way |
-| `BindText` | `Label BindText<T>(ObservableValue<T> source, Func<T, string> convert)` | One-Way |
-
-```csharp
-var text = new ObservableValue<string>("Hello");
-var count = new ObservableValue<int>(42);
-
-new Label().BindText(text)                      // Direct binding
-new Label().BindText(count, c => $"Count: {c}") // Conversion binding
-```
+| Method | Direction | Description |
+|--------|-----------|-------------|
+| `BindText(ObservableValue<string>)` | One-Way | Text binding |
+| `BindText<T>(ObservableValue<T>, Func<T, string>)` | One-Way | Conversion binding |
 
 ### TextBox / MultiLineTextBox
 
-| Method | Signature | Direction |
-|--------|-----------|-----------|
-| `BindText` | `TextBox BindText(ObservableValue<string> source)` | Two-Way |
-
-```csharp
-var input = new ObservableValue<string>("");
-
-new TextBox().BindText(input)
-new MultiLineTextBox().BindText(input)
-```
+| Method | Direction | Description |
+|--------|-----------|-------------|
+| `BindText(ObservableValue<string>)` | Two-Way | Text input binding |
 
 ### Button
 
-| Method | Signature | Direction |
-|--------|-----------|-----------|
-| `BindContent` | `Button BindContent(ObservableValue<string> source)` | One-Way |
-| `BindContent` | `Button BindContent<T>(ObservableValue<T> source, Func<T, string> convert)` | One-Way |
-
-```csharp
-var buttonText = new ObservableValue<string>("Click Me");
-
-new Button().BindContent(buttonText)
-new Button().BindContent(buttonText, t => $"[{t}]")     // Conversion binding
-```
+| Method | Direction | Description |
+|--------|-----------|-------------|
+| `BindContent(ObservableValue<string>)` | One-Way | Button text binding |
+| `BindContent<T>(ObservableValue<T>, Func<T, string>)` | One-Way | Conversion binding |
 
 ### CheckBox / RadioButton / ToggleSwitch
 
-| Method | Signature | Direction |
-|--------|-----------|-----------|
-| `BindIsChecked` | `T BindIsChecked<T>(ObservableValue<bool> source)` | Two-Way |
-
-```csharp
-var isChecked = new ObservableValue<bool>(false);
-
-new CheckBox().BindIsChecked(isChecked)
-new RadioButton().BindIsChecked(isChecked)
-new ToggleSwitch().BindIsChecked(isChecked)
-```
+| Method | Direction | Description |
+|--------|-----------|-------------|
+| `BindIsChecked(ObservableValue<bool>)` | Two-Way | Checked state binding |
 
 ### ListBox / ComboBox
 
-| Method | Signature | Direction |
-|--------|-----------|-----------|
-| `BindSelectedIndex` | `T BindSelectedIndex<T>(ObservableValue<int> source)` | Two-Way |
-
-```csharp
-var selectedIndex = new ObservableValue<int>(0);
-
-new ListBox()
-    .Items("A", "B", "C")
-    .BindSelectedIndex(selectedIndex)
-
-new ComboBox()
-    .Items("Small", "Medium", "Large")
-    .BindSelectedIndex(selectedIndex)
-```
+| Method | Direction | Description |
+|--------|-----------|-------------|
+| `BindSelectedIndex(ObservableValue<int>)` | Two-Way | Selection index binding |
 
 ### Slider
 
-| Method | Signature | Direction |
-|--------|-----------|-----------|
-| `BindValue` | `Slider BindValue(ObservableValue<double> source)` | Two-Way |
-
-```csharp
-var volume = new ObservableValue<double>(50);
-
-new Slider()
-    .Minimum(0)
-    .Maximum(100)
-    .BindValue(volume)
-```
+| Method | Direction | Description |
+|--------|-----------|-------------|
+| `BindValue(ObservableValue<double>)` | Two-Way | Value binding |
 
 ### ProgressBar
 
-| Method | Signature | Direction |
-|--------|-----------|-----------|
-| `BindValue` | `ProgressBar BindValue(ObservableValue<double> source)` | One-Way |
-
-```csharp
-var progress = new ObservableValue<double>(0);
-
-new ProgressBar()
-    .Minimum(0)
-    .Maximum(100)
-    .BindValue(progress)
-```
+| Method | Direction | Description |
+|--------|-----------|-------------|
+| `BindValue(ObservableValue<double>)` | One-Way | Progress value binding |
 
 ### UIElement (Common)
 
-| Method | Signature | Direction |
-|--------|-----------|-----------|
-| `BindIsVisible` | `T BindIsVisible<T>(ObservableValue<bool> source) where T : UIElement` | One-Way |
-| `BindIsEnabled` | `T BindIsEnabled<T>(ObservableValue<bool> source) where T : UIElement` | One-Way |
+| Method | Direction | Description |
+|--------|-----------|-------------|
+| `BindIsVisible(ObservableValue<bool>)` | One-Way | Visibility binding |
+| `BindIsEnabled(ObservableValue<bool>)` | One-Way | Enabled state binding |
 
-```csharp
-var isVisible = new ObservableValue<bool>(true);
-var isEnabled = new ObservableValue<bool>(true);
+### Generic (Any MewProperty)
 
-new Button()
-    .BindIsVisible(isVisible)
-    .BindIsEnabled(isEnabled)
-```
+| Method | Direction | Description |
+|--------|-----------|-------------|
+| `Bind<TElement, T>(MewProperty<T>, ObservableValue<T>)` | Default | Direct property binding |
+| `Bind<TElement, TProp, TSource>(MewProperty<TProp>, ObservableValue<TSource>, convert, convertBack?)` | Default | Conversion property binding |
 
 ---
 
-## ViewModel Pattern
+## 5. ViewModel Pattern
 
 ### Basic ViewModel
 
@@ -327,7 +216,6 @@ class LoginViewModel
             ErrorMessage.Value = "Username is required";
             return;
         }
-
         IsLoading.Value = true;
         // ... login logic
     }
@@ -352,11 +240,11 @@ new StackPanel()
             .BindText(vm.Password),
 
         new CheckBox()
-            .Text("Remember me")
+            .Content("Remember me")
             .BindIsChecked(vm.RememberMe),
 
         new Label()
-            .Foreground(Colors.Red)
+            .Foreground(Color.FromRgb(200, 60, 60))
             .BindText(vm.ErrorMessage),
 
         new Button()
@@ -368,218 +256,106 @@ new StackPanel()
 
 ---
 
-## Computed Values
+## 6. Computed Values
 
-You can combine multiple ObservableValues to create derived values:
+Combine multiple ObservableValues to create derived values:
 
 ```csharp
 var firstName = new ObservableValue<string>("");
 var lastName = new ObservableValue<string>("");
 
-// Label for derived value
 new Label()
     .Apply(label =>
     {
-        void UpdateFullName()
-        {
-            label.Text = $"{firstName.Value} {lastName.Value}".Trim();
-        }
-
-        firstName.Changed += UpdateFullName;
-        lastName.Changed += UpdateFullName;
-        UpdateFullName();
+        void Update() => label.Text = $"{firstName.Value} {lastName.Value}".Trim();
+        firstName.Changed += Update;
+        lastName.Changed += Update;
+        Update();
     })
 ```
 
-### Helper Method Pattern
+### Reusable pattern
 
 ```csharp
-// Reusable derived binding
 public static Label BindFullName(this Label label,
     ObservableValue<string> firstName,
     ObservableValue<string> lastName)
 {
     void Update() => label.Text = $"{firstName.Value} {lastName.Value}".Trim();
-
     firstName.Changed += Update;
     lastName.Changed += Update;
     Update();
-
     return label;
 }
 
-// Usage
 new Label().BindFullName(vm.FirstName, vm.LastName)
 ```
 
 ---
 
-## Collection Binding
-
-Currently, MewUI does not directly support collection binding.
-Instead, manually update the Items of ListBox/ComboBox:
-
-```csharp
-var items = new List<string> { "A", "B", "C" };
-ListBox listBox = null!;
-
-new ListBox()
-    .Ref(out listBox)
-    .Items(items.ToArray());
-
-// Add item
-items.Add("D");
-listBox.AddItem("D");
-listBox.InvalidateMeasure();
-
-// Full refresh
-listBox.ClearItems();
-foreach (var item in items)
-{
-    listBox.AddItem(item);
-}
-listBox.InvalidateMeasure();
-```
-
----
-
-## ValueBinding\<T> (Advanced)
-
-A low-level binding class used internally by controls.
-Generally not needed directly, but useful for custom control development.
-
-```csharp
-public sealed class ValueBinding<T> : IDisposable
-{
-    public ValueBinding(
-        Func<T> get,                    // Read value
-        Action<T>? set,                 // Write value (null for one-way)
-        Action<Action>? subscribe,      // Subscribe to changes
-        Action<Action>? unsubscribe,    // Unsubscribe from changes
-        Action onSourceChanged          // Callback when source changes
-    );
-
-    public T Get();
-    public void Set(T value);
-    public void Dispose();
-}
-```
-
-### Implementing Binding in Custom Controls
-
-```csharp
-public class MyControl : Control
-{
-    private ValueBinding<string>? _textBinding;
-
-    public void SetTextBinding(
-        Func<string> get,
-        Action<string>? set = null,
-        Action<Action>? subscribe = null,
-        Action<Action>? unsubscribe = null)
-    {
-        _textBinding?.Dispose();
-        _textBinding = new ValueBinding<string>(
-            get,
-            set,
-            subscribe,
-            unsubscribe,
-            onSourceChanged: () => Text = get());
-
-        Text = get();
-    }
-
-    protected override void OnDispose()
-    {
-        _textBinding?.Dispose();
-        _textBinding = null;
-    }
-}
-```
-
----
-
-## Memory Management
+## 7. Memory Management
 
 ### Automatic Cleanup
 
-Bindings are automatically cleaned up when controls are disposed:
+Bindings are automatically cleaned up when controls are disposed (e.g., when the Window closes):
 
 ```csharp
-var vm = new ViewModel();
 var textBox = new TextBox().BindText(vm.Name);
-
-// Binding automatically unsubscribed when Window closes
-// (Unsubscribes from Changed event)
+// Binding auto-unsubscribed on disposal
 ```
 
 ### Manual Cleanup
 
-You can manually unsubscribe when needed:
-
 ```csharp
 var counter = new ObservableValue<int>(0);
-
 void OnChanged() => Console.WriteLine(counter.Value);
 
 counter.Subscribe(OnChanged);
-
-// Unsubscribe later
-counter.Unsubscribe(OnChanged);
+counter.Unsubscribe(OnChanged);  // manual unsubscribe
 ```
 
 ---
 
-## Best Practices
+## 8. Best Practices
 
-### 1. Use ObservableValue in ViewModel
+### Use ObservableValue in ViewModels
 
 ```csharp
-// Good
+// Good — bindable
 class ViewModel
 {
     public ObservableValue<string> Name { get; } = new("");
 }
 
-// Bad - regular properties cannot be bound
+// Bad — not bindable
 class ViewModel
 {
     public string Name { get; set; }
 }
 ```
 
-### 2. Ensure Validity with Coerce
+### Use Coerce for validation
 
 ```csharp
-// Good - always valid value
 var age = new ObservableValue<int>(0, v => Math.Clamp(v, 0, 150));
-
-// Bad - invalid values can be set
-var age = new ObservableValue<int>(0);
 ```
 
-### 3. Separate Display Logic with Conversion Binding
+### Keep display logic in UI layer
 
 ```csharp
-// Good - display logic in UI layer
+// Good — conversion at binding
 new Label().BindText(vm.Price, p => $"${p:N0}")
 
-// Bad - display logic mixed in ViewModel
-class ViewModel
-{
-    public ObservableValue<string> FormattedPrice { get; }
-}
+// Bad — formatting in ViewModel
+class ViewModel { public ObservableValue<string> FormattedPrice { get; } }
 ```
 
-### 4. Distinguish One-Way vs Two-Way Binding
+### Use Bind\<T> for non-standard properties
 
 ```csharp
-// One-way: Label, ProgressBar (display only)
-new Label().BindText(vm.Status)
-new ProgressBar().BindValue(vm.Progress)
-
-// Two-way: TextBox, CheckBox, Slider (input)
+// Fluent shorthand for common properties
 new TextBox().BindText(vm.Name)
-new CheckBox().BindIsChecked(vm.IsEnabled)
-new Slider().BindValue(vm.Volume)
+
+// Generic Bind for any MewProperty
+new Border().Bind(Control.BackgroundProperty, vm.StatusColor)
 ```
