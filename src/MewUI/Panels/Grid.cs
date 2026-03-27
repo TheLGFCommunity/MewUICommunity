@@ -1,6 +1,9 @@
-using Aprillz.MewUI.Animation;
+using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+
+using Aprillz.MewUI.Animation;
+using Aprillz.MewUI.Rendering;
 
 namespace Aprillz.MewUI.Controls;
 
@@ -11,8 +14,10 @@ public enum GridUnitType
 {
     /// <summary>Size to content.</summary>
     Auto,
+
     /// <summary>Fixed pixel size.</summary>
     Pixel,
+
     /// <summary>Proportional size (star sizing).</summary>
     Star
 }
@@ -26,6 +31,7 @@ public readonly struct GridLength
     /// Numeric value.
     /// </summary>
     public double Value { get; }
+
     /// <summary>
     /// Unit type.
     /// </summary>
@@ -41,10 +47,12 @@ public readonly struct GridLength
     /// Gets whether this is Auto sizing.
     /// </summary>
     public bool IsAuto => GridUnitType == GridUnitType.Auto;
+
     /// <summary>
     /// Gets whether this is Star sizing.
     /// </summary>
     public bool IsStar => GridUnitType == GridUnitType.Star;
+
     /// <summary>
     /// Gets whether this is absolute pixel sizing.
     /// </summary>
@@ -54,16 +62,19 @@ public readonly struct GridLength
     /// Auto sizing (size to content).
     /// </summary>
     public static GridLength Auto => new(1, GridUnitType.Auto);
+
     /// <summary>
     /// Star sizing (1*).
     /// </summary>
     public static GridLength Star => new(1, GridUnitType.Star);
+
     /// <summary>
     /// Star sizing with specified value.
     /// </summary>
     /// <param name="value">Star value.</param>
     /// <returns>GridLength with star sizing.</returns>
     public static GridLength Stars(double value) => new(value, GridUnitType.Star);
+
     /// <summary>
     /// Absolute pixel sizing.
     /// </summary>
@@ -74,46 +85,173 @@ public readonly struct GridLength
     public static implicit operator GridLength(double value) => new(value, GridUnitType.Pixel);
 }
 
-/// <summary>
-/// Defines a row in a Grid.
-/// </summary>
-public class RowDefinition
+public abstract class GridDefinitionBase
 {
-    /// <summary>
-    /// Gets or sets the row height.
-    /// </summary>
-    public GridLength Height { get; set; } = GridLength.Star;
-    /// <summary>
-    /// Gets or sets the minimum height.
-    /// </summary>
-    public double MinHeight { get; set; }
-    /// <summary>
-    /// Gets or sets the maximum height.
-    /// </summary>
-    public double MaxHeight { get; set; } = double.PositiveInfinity;
-    internal double ActualHeight { get; set; }
+    internal Grid? ParentGrid { get; private set; }
+
+    internal double MeasureSize { get; set; }
+
+    internal double FinalSize { get; set; }
+
     internal double Offset { get; set; }
+
+    internal abstract GridLength UserSize { get; }
+
+    internal abstract double UserMinSize { get; }
+
+    internal abstract double UserMaxSize { get; }
+
+    internal abstract double ActualSize { get; set; }
+
+    internal void Attach(Grid grid)
+    {
+        ParentGrid = grid;
+    }
+
+    internal void Detach(Grid grid)
+    {
+        if (ReferenceEquals(ParentGrid, grid))
+        {
+            ParentGrid = null;
+        }
+    }
+
+    protected void InvalidateParentGrid()
+    {
+        ParentGrid?.InvalidateMeasure();
+    }
 }
 
-/// <summary>
-/// Defines a column in a Grid.
-/// </summary>
-public class ColumnDefinition
+public sealed class RowDefinition : GridDefinitionBase
 {
-    /// <summary>
-    /// Gets or sets the column width.
-    /// </summary>
-    public GridLength Width { get; set; } = GridLength.Star;
-    /// <summary>
-    /// Gets or sets the minimum width.
-    /// </summary>
-    public double MinWidth { get; set; }
-    /// <summary>
-    /// Gets or sets the maximum width.
-    /// </summary>
-    public double MaxWidth { get; set; } = double.PositiveInfinity;
-    internal double ActualWidth { get; set; }
-    internal double Offset { get; set; }
+    private GridLength _height = GridLength.Star;
+    private double _minHeight;
+    private double _maxHeight = double.PositiveInfinity;
+
+    public GridLength Height
+    {
+        get => _height;
+        set
+        {
+            if (_height.Equals(value))
+            {
+                return;
+            }
+
+            _height = value;
+            InvalidateParentGrid();
+        }
+    }
+
+    public double MinHeight
+    {
+        get => _minHeight;
+        set
+        {
+            if (_minHeight.Equals(value))
+            {
+                return;
+            }
+
+            _minHeight = value;
+            InvalidateParentGrid();
+        }
+    }
+
+    public double MaxHeight
+    {
+        get => _maxHeight;
+        set
+        {
+            if (_maxHeight.Equals(value))
+            {
+                return;
+            }
+
+            _maxHeight = value;
+            InvalidateParentGrid();
+        }
+    }
+
+    public double ActualHeight
+    {
+        get => ActualSize;
+        internal set => ActualSize = value;
+    }
+
+    internal override GridLength UserSize => Height;
+
+    internal override double UserMinSize => MinHeight;
+
+    internal override double UserMaxSize => MaxHeight;
+
+    internal override double ActualSize { get; set; }
+}
+
+public sealed class ColumnDefinition : GridDefinitionBase
+{
+    private GridLength _width = GridLength.Star;
+    private double _minWidth;
+    private double _maxWidth = double.PositiveInfinity;
+
+    public GridLength Width
+    {
+        get => _width;
+        set
+        {
+            if (_width.Equals(value))
+            {
+                return;
+            }
+
+            _width = value;
+            InvalidateParentGrid();
+        }
+    }
+
+    public double MinWidth
+    {
+        get => _minWidth;
+        set
+        {
+            if (_minWidth.Equals(value))
+            {
+                return;
+            }
+
+            _minWidth = value;
+            InvalidateParentGrid();
+        }
+    }
+
+    public double MaxWidth
+    {
+        get => _maxWidth;
+        set
+        {
+            if (_maxWidth.Equals(value))
+            {
+                return;
+            }
+
+            _maxWidth = value;
+            InvalidateParentGrid();
+        }
+    }
+
+    public double ActualWidth
+    {
+        get => ActualSize;
+        internal set => ActualSize = value;
+    }
+
+    internal override GridLength UserSize => Width;
+
+    internal override double UserMinSize => MinWidth;
+
+    internal override double UserMaxSize => MaxWidth;
+
+    internal override double ActualSize { get; set; }
 }
 
 /// <summary>
@@ -121,15 +259,6 @@ public class ColumnDefinition
 /// </summary>
 public class Grid : Panel
 {
-    public static readonly MewProperty<bool> AutoIndexingProperty =
-        MewProperty<bool>.Register<Grid>(nameof(AutoIndexing), true, MewPropertyOptions.AffectsLayout);
-
-    public static readonly MewProperty<double> SpacingProperty =
-        MewProperty<double>.Register<Grid>(nameof(Spacing), 0.0, MewPropertyOptions.AffectsLayout);
-
-    private readonly List<RowDefinition> _rowDefinitions = new();
-    private readonly List<ColumnDefinition> _columnDefinitions = new();
-
     private static readonly ConditionalWeakTable<Element, GridAttachedProperties> _attachedProperties = new();
 
     private sealed class GridAttachedProperties
@@ -140,33 +269,6 @@ public class Grid : Panel
         public bool HasColumn;
         public int RowSpan = 1;
         public int ColumnSpan = 1;
-    }
-
-    /// <summary>
-    /// Gets the row definitions collection.
-    /// </summary>
-    public IList<RowDefinition> RowDefinitions => _rowDefinitions;
-    /// <summary>
-    /// Gets the column definitions collection.
-    /// </summary>
-    public IList<ColumnDefinition> ColumnDefinitions => _columnDefinitions;
-
-    /// <summary>
-    /// Gets or sets whether children without explicit Row/Column are auto-placed.
-    /// </summary>
-    public bool AutoIndexing
-    {
-        get => GetValue(AutoIndexingProperty);
-        set => SetValue(AutoIndexingProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the spacing between grid cells (both row/column gaps).
-    /// </summary>
-    public double Spacing
-    {
-        get => GetValue(SpacingProperty);
-        set => SetValue(SpacingProperty, value);
     }
 
     #region Attached Properties
@@ -189,6 +291,7 @@ public class Grid : Panel
     /// <param name="element">Target element.</param>
     /// <returns>The row index.</returns>
     public static int GetRow(Element element) => TryGet(element, out var props) ? props.Row : 0;
+
     internal static bool HasRow(Element element) => TryGet(element, out var props) && props.HasRow;
 
     /// <summary>
@@ -209,6 +312,7 @@ public class Grid : Panel
     /// <param name="element">Target element.</param>
     /// <returns>The column index.</returns>
     public static int GetColumn(Element element) => TryGet(element, out var props) ? props.Column : 0;
+
     internal static bool HasColumn(Element element) => TryGet(element, out var props) && props.HasColumn;
 
     /// <summary>
@@ -217,6 +321,7 @@ public class Grid : Panel
     /// <param name="element">Target element.</param>
     /// <param name="span">Number of rows to span.</param>
     public static void SetRowSpan(Element element, int span) => GetOrCreate(element).RowSpan = span;
+
     /// <summary>
     /// Gets the row span of an element.
     /// </summary>
@@ -230,6 +335,7 @@ public class Grid : Panel
     /// <param name="element">Target element.</param>
     /// <param name="span">Number of columns to span.</param>
     public static void SetColumnSpan(Element element, int span) => GetOrCreate(element).ColumnSpan = span;
+
     /// <summary>
     /// Gets the column span of an element.
     /// </summary>
@@ -244,317 +350,960 @@ public class Grid : Panel
 
     #endregion
 
-    protected override void OnChildRemoved(Element child)
+    public static readonly MewProperty<bool> AutoIndexingProperty =
+        MewProperty<bool>.Register<Grid>(nameof(AutoIndexing), true, MewPropertyOptions.AffectsLayout);
+
+    public static readonly MewProperty<double> SpacingProperty =
+        MewProperty<double>.Register<Grid>(nameof(Spacing), 0.0, MewPropertyOptions.AffectsLayout);
+
+    public static readonly MewProperty<bool> ShowGridLineProperty =
+        MewProperty<bool>.Register<Grid>(nameof(ShowGridLine), false, MewPropertyOptions.AffectsRender);
+
+    private readonly DefinitionCollection<RowDefinition> _rowDefinitions;
+    private readonly DefinitionCollection<ColumnDefinition> _columnDefinitions;
+    private readonly RowDefinition _implicitRow = new();
+    private readonly ColumnDefinition _implicitColumn = new();
+    private readonly IReadOnlyList<RowDefinition> _implicitRows;
+    private readonly IReadOnlyList<ColumnDefinition> _implicitColumns;
+
+    public Grid()
     {
-        _attachedProperties.Remove(child);
+        _rowDefinitions = new DefinitionCollection<RowDefinition>(this);
+        _columnDefinitions = new DefinitionCollection<ColumnDefinition>(this);
+        _implicitRows = [_implicitRow];
+        _implicitColumns = [_implicitColumn];
+    }
+
+    public IList<RowDefinition> RowDefinitions => _rowDefinitions;
+
+    public IList<ColumnDefinition> ColumnDefinitions => _columnDefinitions;
+
+    public bool AutoIndexing
+    {
+        get => GetValue(AutoIndexingProperty);
+        set => SetValue(AutoIndexingProperty, value);
+    }
+
+    public double Spacing
+    {
+        get => GetValue(SpacingProperty);
+        set => SetValue(SpacingProperty, value);
+    }
+
+    public bool ShowGridLine
+    {
+        get => GetValue(ShowGridLineProperty);
+        set => SetValue(ShowGridLineProperty, value);
     }
 
     protected override Size MeasureContent(Size availableSize)
     {
+        var rows = GetEffectiveRows();
+        var columns = GetEffectiveColumns();
+        var placements = BuildPlacements(rows.Count, columns.Count);
         var paddedSize = availableSize.Deflate(Padding);
-        EnsureDefinitions();
-        if (AutoIndexing)
-        {
-            EnsureAutoPlacement();
-        }
+        double spacing = Math.Max(0, Spacing);
 
-        int rowCount = _rowDefinitions.Count;
-        int colCount = _columnDefinitions.Count;
+        MeasureByGroups(placements, rows, columns, paddedSize, spacing);
 
-        // First pass: measure children with infinite size to get desired sizes
-        foreach (var child in Children)
-        {
-            if (child is UIElement ui && !ui.IsVisible)
-            {
-                continue;
-            }
+        CommitActualSizes(columns, rows, useFinal: false);
 
-            child.Measure(Size.Infinity);
-        }
-
-        double colGaps = colCount > 1 ? (colCount - 1) * Spacing : 0;
-        double rowGaps = rowCount > 1 ? (rowCount - 1) * Spacing : 0;
-
-        double availableWidth = Math.Max(0, paddedSize.Width - colGaps);
-        double availableHeight = Math.Max(0, paddedSize.Height - rowGaps);
-
-        // Calculate fixed (Absolute + Auto) sizes, then resolve star for Measure
-        CalculateFixedLengths(_columnDefinitions, true);
-        ResolveStarMeasure(_columnDefinitions, true);
-
-        CalculateFixedLengths(_rowDefinitions, false);
-        ResolveStarMeasure(_rowDefinitions, false);
-
-        // Second pass: re-measure children with actual cell sizes when constrained.
-        // This is required for wrapped text to compute correct line breaks within the final width.
-        if (!double.IsPositiveInfinity(availableWidth) || !double.IsPositiveInfinity(availableHeight))
-        {
-            MeasureChildrenWithActuals(colGaps, rowGaps);
-
-            // Recalculate auto sizes based on updated DesiredSize.
-            if (_columnDefinitions.Any(c => c.Width.IsAuto) || _rowDefinitions.Any(r => r.Height.IsAuto))
-            {
-                CalculateFixedLengths(_columnDefinitions, true);
-                ResolveStarMeasure(_columnDefinitions, true);
-
-                CalculateFixedLengths(_rowDefinitions, false);
-                ResolveStarMeasure(_rowDefinitions, false);
-            }
-        }
-
-        // Calculate total size
-        double totalWidth = 0;
-        double totalHeight = 0;
-
-        foreach (var col in _columnDefinitions)
-        {
-            totalWidth += col.ActualWidth;
-        }
-
-        foreach (var row in _rowDefinitions)
-        {
-            totalHeight += row.ActualHeight;
-        }
-
-        totalWidth += colGaps;
-        totalHeight += rowGaps;
-
+        double totalWidth = SumMeasureSizes(columns, spacing);
+        double totalHeight = SumMeasureSizes(rows, spacing);
         return new Size(totalWidth, totalHeight).Inflate(Padding);
     }
 
     protected override void ArrangeContent(Rect bounds)
     {
+        var rows = GetEffectiveRows();
+        var columns = GetEffectiveColumns();
+        var placements = BuildPlacements(rows.Count, columns.Count);
         var contentBounds = bounds.Deflate(Padding);
-        EnsureDefinitions();
-        if (AutoIndexing)
+        double spacing = Math.Max(0, Spacing);
+
+        var finalColumnSizes = CreateFinalSizes(columns, contentBounds.Width, spacing);
+        var finalRowSizes = CreateFinalSizes(rows, contentBounds.Height, spacing);
+
+        ApplyFinalSizes(columns, finalColumnSizes);
+        ApplyFinalSizes(rows, finalRowSizes);
+        CommitActualSizes(columns, rows, useFinal: true);
+        CalculateOffsets(columns, spacing);
+        CalculateOffsets(rows, spacing);
+
+        foreach (var placement in placements)
         {
-            EnsureAutoPlacement();
-        }
-
-        int rowCount = _rowDefinitions.Count;
-        int colCount = _columnDefinitions.Count;
-
-        double colGaps = colCount > 1 ? (colCount - 1) * Spacing : 0;
-        double rowGaps = rowCount > 1 ? (rowCount - 1) * Spacing : 0;
-
-        double availableWidth = Math.Max(0, contentBounds.Width - colGaps);
-        double availableHeight = Math.Max(0, contentBounds.Height - rowGaps);
-
-        // Recalculate with actual available space
-        double colFixed = CalculateFixedLengths(_columnDefinitions, true);
-        ResolveStarArrange(_columnDefinitions, availableWidth, colFixed, true);
-
-        double rowFixed = CalculateFixedLengths(_rowDefinitions, false);
-        ResolveStarArrange(_rowDefinitions, availableHeight, rowFixed, false);
-
-        // Calculate offsets
-        CalculateOffsets(_columnDefinitions, Spacing);
-        CalculateOffsets(_rowDefinitions, Spacing);
-
-        // Arrange children
-        foreach (var child in Children)
-        {
-            if (child is UIElement ui && !ui.IsVisible)
-            {
-                continue;
-            }
-
-            int row = GetRow(child);
-            int col = GetColumn(child);
-            int rowSpan = GetRowSpan(child);
-            int colSpan = GetColumnSpan(child);
-
-            // Clamp to valid range
-            row = Math.Clamp(row, 0, _rowDefinitions.Count - 1);
-            col = Math.Clamp(col, 0, _columnDefinitions.Count - 1);
-            rowSpan = Math.Clamp(rowSpan, 1, _rowDefinitions.Count - row);
-            colSpan = Math.Clamp(colSpan, 1, _columnDefinitions.Count - col);
-
-            // Calculate cell bounds
-            double x = contentBounds.X + _columnDefinitions[col].Offset;
-            double y = contentBounds.Y + _rowDefinitions[row].Offset;
-
-            double width = 0;
-            for (int i = col; i < col + colSpan; i++)
-            {
-                width += _columnDefinitions[i].ActualWidth;
-            }
-
-            double height = 0;
-            for (int i = row; i < row + rowSpan; i++)
-            {
-                height += _rowDefinitions[i].ActualHeight;
-            }
-
-            if (colSpan > 1)
-            {
-                width += (colSpan - 1) * Spacing;
-            }
-
-            if (rowSpan > 1)
-            {
-                height += (rowSpan - 1) * Spacing;
-            }
-
-            child.Arrange(new Rect(x, y, width, height));
+            double x = contentBounds.X + columns[placement.Column].Offset;
+            double y = contentBounds.Y + rows[placement.Row].Offset;
+            double width = GetRangeSize(columns, placement.Column, placement.ColumnSpan, spacing, useFinal: true);
+            double height = GetRangeSize(rows, placement.Row, placement.RowSpan, spacing, useFinal: true);
+            placement.Child.Arrange(new Rect(x, y, width, height));
         }
     }
 
-    private void EnsureDefinitions()
+    protected override void OnRender(IGraphicsContext context)
     {
-        if (_rowDefinitions.Count == 0)
-        {
-            _rowDefinitions.Add(new RowDefinition());
-        }
+        base.OnRender(context);
 
-        if (_columnDefinitions.Count == 0)
-        {
-            _columnDefinitions.Add(new ColumnDefinition());
-        }
-    }
-
-    private void EnsureAutoPlacement()
-    {
-        int rowCount = _rowDefinitions.Count;
-        int colCount = _columnDefinitions.Count;
-
-        if (rowCount <= 0 || colCount <= 0)
+        if (!ShowGridLine)
         {
             return;
         }
 
-        var occupied = new bool[rowCount, colCount];
-
-        // First mark explicitly placed cells (both axes specified)
-        foreach (var child in Children)
+        var rows = GetEffectiveRows();
+        var columns = GetEffectiveColumns();
+        if (rows.Count == 0 || columns.Count == 0)
         {
-            if (child is UIElement ui && !ui.IsVisible)
-            {
-                continue;
-            }
-
-            bool hasRow = HasRow(child);
-            bool hasCol = HasColumn(child);
-            if (!hasRow || !hasCol)
-            {
-                continue;
-            }
-
-            int row = GetRow(child);
-            int col = GetColumn(child);
-
-            int rowSpan = Math.Max(1, GetRowSpan(child));
-            int colSpan = Math.Max(1, GetColumnSpan(child));
-
-            row = Math.Clamp(row, 0, rowCount - 1);
-            col = Math.Clamp(col, 0, colCount - 1);
-            rowSpan = Math.Clamp(rowSpan, 1, rowCount - row);
-            colSpan = Math.Clamp(colSpan, 1, colCount - col);
-
-            MarkOccupied(occupied, row, col, rowSpan, colSpan);
+            return;
         }
 
-        // Auto place remaining children
-        foreach (var child in Children)
+        var contentBounds = Bounds.Deflate(Padding);
+        if (contentBounds.Width <= 0 || contentBounds.Height <= 0)
         {
-            if (child is UIElement ui && !ui.IsVisible)
-            {
-                continue;
-            }
+            return;
+        }
 
-            bool hasRow = HasRow(child);
-            bool hasCol = HasColumn(child);
-            if (hasRow && hasCol)
-            {
-                continue;
-            }
+        var lineColor = Theme.Palette.WindowText.WithAlpha(160);
+        double spacing = Math.Max(0, Spacing);
+        const double thickness = 1.0;
 
-            int rowSpan = Math.Max(1, GetRowSpan(child));
-            int colSpan = Math.Max(1, GetColumnSpan(child));
+        for (int i = 1; i < columns.Count; i++)
+        {
+            double x = contentBounds.X + columns[i].Offset - spacing / 2.0;
+            context.DrawLine(new Point(x, contentBounds.Y), new Point(x, contentBounds.Bottom), lineColor, thickness, false);
+        }
 
-            int placedRow = 0;
-            int placedCol = 0;
-
-            bool placed = false;
-
-            if (hasRow && !hasCol)
-            {
-                int row = Math.Clamp(GetRow(child), 0, rowCount - 1);
-                rowSpan = Math.Clamp(rowSpan, 1, rowCount - row);
-                placed = TryFindInRow(occupied, rowCount, colCount, row, rowSpan, colSpan, out placedCol);
-                placedRow = row;
-            }
-            else if (!hasRow && hasCol)
-            {
-                int col = Math.Clamp(GetColumn(child), 0, colCount - 1);
-                colSpan = Math.Clamp(colSpan, 1, colCount - col);
-                placed = TryFindInColumn(occupied, rowCount, colCount, col, rowSpan, colSpan, out placedRow);
-                placedCol = col;
-            }
-            else
-            {
-                placed = TryFindFirstFit(occupied, rowCount, colCount, rowSpan, colSpan, out placedRow, out placedCol);
-            }
-
-            if (!placed)
-            {
-                placedRow = 0;
-                placedCol = 0;
-                rowSpan = Math.Clamp(rowSpan, 1, rowCount);
-                colSpan = Math.Clamp(colSpan, 1, colCount);
-            }
-
-            if (!hasRow)
-            {
-                SetRow(child, placedRow);
-            }
-
-            if (!hasCol)
-            {
-                SetColumn(child, placedCol);
-            }
-
-            MarkOccupied(occupied, placedRow, placedCol,
-                Math.Clamp(rowSpan, 1, rowCount - placedRow),
-                Math.Clamp(colSpan, 1, colCount - placedCol));
+        for (int i = 1; i < rows.Count; i++)
+        {
+            double y = contentBounds.Y + rows[i].Offset - spacing / 2.0;
+            context.DrawLine(new Point(contentBounds.X, y), new Point(contentBounds.Right, y), lineColor, thickness, false);
         }
     }
 
-    private static void MarkOccupied(bool[,] occupied, int row, int col, int rowSpan, int colSpan)
+    private IReadOnlyList<RowDefinition> GetEffectiveRows()
     {
-        int rows = occupied.GetLength(0);
-        int cols = occupied.GetLength(1);
-
-        int maxRow = Math.Min(rows, row + rowSpan);
-        int maxCol = Math.Min(cols, col + colSpan);
-
-        for (int r = row; r < maxRow; r++)
+        if (_rowDefinitions.Count > 0)
         {
-            for (int c = col; c < maxCol; c++)
+            _implicitRow.Detach(this);
+            return _rowDefinitions;
+        }
+
+        _implicitRow.Attach(this);
+        return _implicitRows;
+    }
+
+    private IReadOnlyList<ColumnDefinition> GetEffectiveColumns()
+    {
+        if (_columnDefinitions.Count > 0)
+        {
+            _implicitColumn.Detach(this);
+            return _columnDefinitions;
+        }
+
+        _implicitColumn.Attach(this);
+        return _implicitColumns;
+    }
+
+    private List<Placement> BuildPlacements(int rowCount, int columnCount)
+    {
+        var placements = new List<Placement>();
+        var occupied = new bool[rowCount, columnCount];
+
+        foreach (var child in EnumerateVisibleChildren())
+        {
+            bool hasRow = Grid.HasRow(child);
+            bool hasColumn = Grid.HasColumn(child);
+            if (!hasRow || !hasColumn)
             {
-                occupied[r, c] = true;
+                continue;
             }
+
+            var placement = CreateClampedPlacement(child, rowCount, columnCount, Grid.GetRow(child), Grid.GetColumn(child));
+            placements.Add(placement);
+            MarkOccupied(occupied, placement);
+        }
+
+        foreach (var child in EnumerateVisibleChildren())
+        {
+            bool hasRow = Grid.HasRow(child);
+            bool hasColumn = Grid.HasColumn(child);
+            if (hasRow && hasColumn)
+            {
+                continue;
+            }
+
+            int row = hasRow ? Grid.GetRow(child) : 0;
+            int column = hasColumn ? Grid.GetColumn(child) : 0;
+            int rowSpan = Math.Max(1, Grid.GetRowSpan(child));
+            int columnSpan = Math.Max(1, Grid.GetColumnSpan(child));
+
+            var placement = CreateClampedPlacement(child, rowCount, columnCount, row, column);
+            placement = placement with
+            {
+                RowSpan = Math.Clamp(rowSpan, 1, rowCount - placement.Row),
+                ColumnSpan = Math.Clamp(columnSpan, 1, columnCount - placement.Column),
+            };
+
+            if (AutoIndexing)
+            {
+                placement = AutoPlace(occupied, placement, rowCount, columnCount, hasRow, hasColumn);
+            }
+
+            placements.Add(placement);
+            MarkOccupied(occupied, placement);
+        }
+
+        return placements;
+    }
+
+    private static Placement AutoPlace(
+        bool[,] occupied,
+        Placement placement,
+        int rowCount,
+        int columnCount,
+        bool hasRow,
+        bool hasColumn)
+    {
+        if (hasRow && !hasColumn)
+        {
+            if (TryFindInRow(occupied, placement.Row, placement.RowSpan, placement.ColumnSpan, out int column))
+            {
+                return placement with { Column = column };
+            }
+        }
+        else if (!hasRow && hasColumn)
+        {
+            if (TryFindInColumn(occupied, placement.Column, placement.RowSpan, placement.ColumnSpan, out int row))
+            {
+                return placement with { Row = row };
+            }
+        }
+        else if (!hasRow && !hasColumn)
+        {
+            if (TryFindFirstFit(occupied, placement.RowSpan, placement.ColumnSpan, out int row, out int column))
+            {
+                return placement with { Row = row, Column = column };
+            }
+        }
+
+        return placement;
+    }
+
+    private static Placement CreateClampedPlacement(Element child, int rowCount, int columnCount, int row, int column)
+    {
+        row = Math.Clamp(row, 0, rowCount - 1);
+        column = Math.Clamp(column, 0, columnCount - 1);
+
+        int rowSpan = Math.Clamp(Math.Max(1, Grid.GetRowSpan(child)), 1, rowCount - row);
+        int columnSpan = Math.Clamp(Math.Max(1, Grid.GetColumnSpan(child)), 1, columnCount - column);
+
+        return new Placement(child, row, column, rowSpan, columnSpan);
+    }
+
+    private void MeasureByGroups(
+        IReadOnlyList<Placement> placements,
+        IReadOnlyList<RowDefinition> rows,
+        IReadOnlyList<ColumnDefinition> columns,
+        Size paddedSize,
+        double spacing)
+    {
+        bool finiteWidth = !double.IsPositiveInfinity(paddedSize.Width);
+        bool finiteHeight = !double.IsPositiveInfinity(paddedSize.Height);
+
+        MeasurePlacements(placements, rows, columns, spacing, mode: MeasureMode.Initial, targetGroup: CellGroup.Group1, null, null, finiteWidth, finiteHeight);
+        RecomputeMeasureSizes(columns, rows, placements);
+
+        bool hasCyclicGroups =
+            HasGroup(placements, rows, columns, CellGroup.Group2, finiteWidth, finiteHeight) &&
+            HasGroup(placements, rows, columns, CellGroup.Group3, finiteWidth, finiteHeight);
+
+        int maxPasses = hasCyclicGroups ? 4 : 1;
+        for (int pass = 0; pass < maxPasses; pass++)
+        {
+            var beforeColumns = CaptureMeasureSizes(columns);
+            var beforeRows = CaptureMeasureSizes(rows);
+
+            var columnConstraints = CreateMeasureConstraints(columns, paddedSize.Width, spacing);
+            var rowConstraints = CreateMeasureConstraints(rows, paddedSize.Height, spacing);
+
+            MeasurePlacements(placements, rows, columns, spacing, mode: MeasureMode.Constrained, targetGroup: CellGroup.Group2, columnConstraints, rowConstraints, finiteWidth, finiteHeight);
+            MeasurePlacements(placements, rows, columns, spacing, mode: MeasureMode.Constrained, targetGroup: CellGroup.Group3, columnConstraints, rowConstraints, finiteWidth, finiteHeight);
+            RecomputeMeasureSizes(columns, rows, placements);
+
+            if (!hasCyclicGroups || IsStable(beforeColumns, columns) && IsStable(beforeRows, rows))
+            {
+                break;
+            }
+        }
+
+        var finalColumnConstraints = CreateMeasureConstraints(columns, paddedSize.Width, spacing);
+        var finalRowConstraints = CreateMeasureConstraints(rows, paddedSize.Height, spacing);
+
+        MeasurePlacements(placements, rows, columns, spacing, mode: MeasureMode.Constrained, targetGroup: CellGroup.Group2, finalColumnConstraints, finalRowConstraints, finiteWidth, finiteHeight);
+        MeasurePlacements(placements, rows, columns, spacing, mode: MeasureMode.Constrained, targetGroup: CellGroup.Group3, finalColumnConstraints, finalRowConstraints, finiteWidth, finiteHeight);
+        RecomputeMeasureSizes(columns, rows, placements);
+
+        var group4ColumnConstraints = CreateMeasureConstraints(columns, paddedSize.Width, spacing);
+        var group4RowConstraints = CreateMeasureConstraints(rows, paddedSize.Height, spacing);
+        MeasurePlacements(placements, rows, columns, spacing, mode: MeasureMode.Constrained, targetGroup: CellGroup.Group4, group4ColumnConstraints, group4RowConstraints, finiteWidth, finiteHeight);
+
+        RecomputeMeasureSizes(columns, rows, placements);
+    }
+
+    private void MeasurePlacements(
+        IReadOnlyList<Placement> placements,
+        IReadOnlyList<RowDefinition> rows,
+        IReadOnlyList<ColumnDefinition> columns,
+        double spacing,
+        MeasureMode mode,
+        CellGroup targetGroup,
+        double[]? columnConstraints,
+        double[]? rowConstraints,
+        bool finiteWidth,
+        bool finiteHeight)
+    {
+        foreach (var placement in placements)
+        {
+            if (GetCellGroup(placement, rows, columns, finiteWidth, finiteHeight) != targetGroup)
+            {
+                continue;
+            }
+
+            var constraint = CreateChildConstraint(placement, rows, columns, spacing, mode, columnConstraints, rowConstraints);
+            placement.Child.Measure(constraint);
         }
     }
 
-    private static bool CanPlace(bool[,] occupied, int row, int col, int rowSpan, int colSpan)
+    private void RecomputeMeasureSizes(
+        IReadOnlyList<ColumnDefinition> columns,
+        IReadOnlyList<RowDefinition> rows,
+        IReadOnlyList<Placement> placements)
     {
-        int rows = occupied.GetLength(0);
-        int cols = occupied.GetLength(1);
+        ComputeMeasureSizes(columns, placements, isColumn: true);
+        ComputeMeasureSizes(rows, placements, isColumn: false);
+    }
 
-        if (row < 0 || col < 0 || row >= rows || col >= cols)
+    private static bool HasGroup(
+        IReadOnlyList<Placement> placements,
+        IReadOnlyList<RowDefinition> rows,
+        IReadOnlyList<ColumnDefinition> columns,
+        CellGroup group,
+        bool finiteWidth,
+        bool finiteHeight)
+    {
+        foreach (var placement in placements)
+        {
+            if (GetCellGroup(placement, rows, columns, finiteWidth, finiteHeight) == group)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static double[] CaptureMeasureSizes<T>(IReadOnlyList<T> definitions) where T : GridDefinitionBase
+        => definitions.Select(definition => definition.MeasureSize).ToArray();
+
+    private static bool IsStable<T>(double[] before, IReadOnlyList<T> definitions) where T : GridDefinitionBase
+    {
+        if (before.Length != definitions.Count)
         {
             return false;
         }
 
-        if (row + rowSpan > rows || col + colSpan > cols)
+        for (int i = 0; i < before.Length; i++)
+        {
+            if (Math.Abs(before[i] - definitions[i].MeasureSize) > 0.1)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static CellGroup GetCellGroup(
+        Placement placement,
+        IReadOnlyList<RowDefinition> rows,
+        IReadOnlyList<ColumnDefinition> columns,
+        bool finiteWidth,
+        bool finiteHeight)
+    {
+        bool rowHasStar = SpanHas(rows, placement.Row, placement.RowSpan, definition => GetMeasureUnitType(definition, finiteHeight) == GridUnitType.Star);
+        bool rowHasAuto = SpanHas(rows, placement.Row, placement.RowSpan, definition => GetMeasureUnitType(definition, finiteHeight) == GridUnitType.Auto);
+        bool columnHasStar = SpanHas(columns, placement.Column, placement.ColumnSpan, definition => GetMeasureUnitType(definition, finiteWidth) == GridUnitType.Star);
+        bool columnHasAuto = SpanHas(columns, placement.Column, placement.ColumnSpan, definition => GetMeasureUnitType(definition, finiteWidth) == GridUnitType.Auto);
+
+        if (!rowHasStar && !columnHasStar)
+        {
+            return CellGroup.Group1;
+        }
+
+        if (rowHasStar && columnHasAuto)
+        {
+            return CellGroup.Group2;
+        }
+
+        if (rowHasAuto && columnHasStar)
+        {
+            return CellGroup.Group3;
+        }
+
+        return CellGroup.Group4;
+    }
+
+    private static bool SpanHas<T>(IReadOnlyList<T> definitions, int start, int span, Func<T, bool> predicate)
+    {
+        for (int i = start; i < start + span; i++)
+        {
+            if (predicate(definitions[i]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static GridUnitType GetMeasureUnitType(GridDefinitionBase definition, bool finiteConstraint)
+    {
+        if (definition.UserSize.IsAbsolute)
+        {
+            return GridUnitType.Pixel;
+        }
+
+        if (definition.UserSize.IsStar && finiteConstraint)
+        {
+            return GridUnitType.Star;
+        }
+
+        return GridUnitType.Auto;
+    }
+
+    private static Size CreateChildConstraint(
+        Placement placement,
+        IReadOnlyList<RowDefinition> rows,
+        IReadOnlyList<ColumnDefinition> columns,
+        double spacing,
+        MeasureMode mode,
+        double[]? columnConstraints,
+        double[]? rowConstraints)
+    {
+        double width = CreateAxisConstraint(placement.Column, placement.ColumnSpan, columns, spacing, mode, columnConstraints);
+        double height = CreateAxisConstraint(placement.Row, placement.RowSpan, rows, spacing, mode, rowConstraints);
+        return new Size(width, height);
+    }
+
+    private static double CreateAxisConstraint<T>(
+        int start,
+        int span,
+        IReadOnlyList<T> definitions,
+        double spacing,
+        MeasureMode mode,
+        double[]? constraints)
+        where T : GridDefinitionBase
+    {
+        if (mode == MeasureMode.Constrained && constraints != null)
+        {
+            return GetRangeSize(constraints, start, span, spacing);
+        }
+
+        bool allPixel = true;
+        for (int i = start; i < start + span; i++)
+        {
+            if (!definitions[i].UserSize.IsAbsolute)
+            {
+                allPixel = false;
+                break;
+            }
+        }
+
+        if (allPixel)
+        {
+            double total = 0;
+            for (int i = start; i < start + span; i++)
+            {
+                total += definitions[i].UserSize.Value;
+            }
+
+            if (span > 1)
+            {
+                total += (span - 1) * spacing;
+            }
+
+            return total;
+        }
+
+        return double.PositiveInfinity;
+    }
+
+    private void ComputeMeasureSizes<T>(IReadOnlyList<T> definitions, IReadOnlyList<Placement> placements, bool isColumn)
+        where T : GridDefinitionBase
+    {
+        InitializeMeasureSizes(definitions);
+        var spanRequests = new Dictionary<SpanKey, double>();
+
+        foreach (var placement in placements)
+        {
+            int start = isColumn ? placement.Column : placement.Row;
+            int span = isColumn ? placement.ColumnSpan : placement.RowSpan;
+            double desired = GetDesiredSize(placement.Child, isColumn);
+            if (span > 1)
+            {
+                desired = Math.Max(0, desired - (span - 1) * Math.Max(0, Spacing));
+            }
+
+            if (span == 1)
+            {
+                var definition = definitions[start];
+                if (!definition.UserSize.IsAbsolute)
+                {
+                    definition.MeasureSize = Math.Max(definition.MeasureSize, desired);
+                }
+                continue;
+            }
+
+            RegisterSpanRequest(spanRequests, start, span, desired);
+        }
+
+        foreach (var spanRequest in spanRequests.OrderBy(item => item.Key.Span))
+        {
+            EnsureMinSizeInDefinitionRange(definitions, spanRequest.Key.Start, spanRequest.Key.Span, spanRequest.Value);
+        }
+
+        foreach (var definition in definitions)
+        {
+            definition.MeasureSize = ClampDefinitionSize(definition, definition.MeasureSize);
+        }
+    }
+
+    private static void InitializeMeasureSizes<T>(IReadOnlyList<T> definitions) where T : GridDefinitionBase
+    {
+        foreach (var definition in definitions)
+        {
+            if (definition.UserSize.IsAbsolute)
+            {
+                definition.MeasureSize = ClampDefinitionSize(definition, definition.UserSize.Value);
+            }
+            else
+            {
+                definition.MeasureSize = ClampDefinitionSize(definition, definition.UserMinSize);
+            }
+        }
+    }
+
+    private static void RegisterSpanRequest(Dictionary<SpanKey, double> spanRequests, int start, int span, double desired)
+    {
+        var key = new SpanKey(start, span);
+        if (spanRequests.TryGetValue(key, out double existing))
+        {
+            spanRequests[key] = Math.Max(existing, desired);
+        }
+        else
+        {
+            spanRequests.Add(key, desired);
+        }
+    }
+
+    private static void EnsureMinSizeInDefinitionRange<T>(IReadOnlyList<T> definitions, int start, int span, double desired)
+        where T : GridDefinitionBase
+    {
+        double current = 0;
+        for (int i = start; i < start + span; i++)
+        {
+            current += definitions[i].MeasureSize;
+        }
+
+        double extra = Math.Max(0, desired - current);
+        if (extra <= 0)
+        {
+            return;
+        }
+
+        var preferredDefinitions = new List<T>();
+        var autoDefinitions = new List<T>();
+        var starDefinitions = new List<T>();
+        var otherDefinitions = new List<T>();
+        for (int i = start; i < start + span; i++)
+        {
+            var definition = definitions[i];
+            if (definition.UserSize.IsAuto)
+            {
+                autoDefinitions.Add(definition);
+                preferredDefinitions.Add(definition);
+            }
+            else if (definition.UserSize.IsStar)
+            {
+                starDefinitions.Add(definition);
+            }
+            else
+            {
+                otherDefinitions.Add(definition);
+            }
+        }
+
+        if (preferredDefinitions.Count > 0)
+        {
+            DistributeExtra(preferredDefinitions, extra, useStarWeights: false);
+            return;
+        }
+
+        if (starDefinitions.Count > 0)
+        {
+            DistributeExtra(starDefinitions, extra, useStarWeights: true);
+            return;
+        }
+
+        if (otherDefinitions.Count > 0)
+        {
+            DistributeExtra(otherDefinitions, extra, useStarWeights: false);
+        }
+    }
+
+    private static void DistributeExtra<T>(IReadOnlyList<T> definitions, double extra, bool useStarWeights)
+        where T : GridDefinitionBase
+    {
+        var remaining = extra;
+        var pending = new List<T>(definitions);
+
+        while (remaining > 0.01 && pending.Count > 0)
+        {
+            double totalWeight = pending.Sum(def => GetDefinitionWeight(def, useStarWeights));
+            if (totalWeight <= 0)
+            {
+                break;
+            }
+
+            double applied = 0;
+            for (int i = pending.Count - 1; i >= 0; i--)
+            {
+                var definition = pending[i];
+                double before = definition.MeasureSize;
+                double share = remaining * GetDefinitionWeight(definition, useStarWeights) / totalWeight;
+                definition.MeasureSize = ClampDefinitionSize(definition, before + share);
+                applied += definition.MeasureSize - before;
+
+                if (definition.MeasureSize >= definition.UserMaxSize - 0.01)
+                {
+                    pending.RemoveAt(i);
+                }
+            }
+
+            if (applied <= 0.01)
+            {
+                break;
+            }
+
+            remaining -= applied;
+        }
+    }
+
+    private static double[] CreateMeasureConstraints<T>(IReadOnlyList<T> definitions, double available, double spacing)
+        where T : GridDefinitionBase
+    {
+        if (double.IsPositiveInfinity(available))
+        {
+            return definitions.Select(def => def.MeasureSize).ToArray();
+        }
+
+        return CreateDistributedSizes(definitions, available, spacing, useMeasuredForStarWhenInfinite: false);
+    }
+
+    private static double[] CreateFinalSizes<T>(IReadOnlyList<T> definitions, double available, double spacing)
+        where T : GridDefinitionBase
+    {
+        if (double.IsPositiveInfinity(available))
+        {
+            return definitions.Select(def => def.MeasureSize).ToArray();
+        }
+
+        return CreateDistributedSizes(definitions, available, spacing, useMeasuredForStarWhenInfinite: false);
+    }
+
+    private static double[] CreateDistributedSizes<T>(
+        IReadOnlyList<T> definitions,
+        double available,
+        double spacing,
+        bool useMeasuredForStarWhenInfinite)
+        where T : GridDefinitionBase
+    {
+        var sizes = new double[definitions.Count];
+        double gaps = definitions.Count > 1 ? (definitions.Count - 1) * spacing : 0;
+        double usable = Math.Max(0, available - gaps);
+        double occupied = 0;
+        var starDefinitions = new List<T>();
+
+        for (int i = 0; i < definitions.Count; i++)
+        {
+            var definition = definitions[i];
+            if (definition.UserSize.IsStar)
+            {
+                starDefinitions.Add(definition);
+                sizes[i] = ClampDefinitionSize(definition, definition.UserMinSize);
+            }
+            else
+            {
+                sizes[i] = definition.MeasureSize;
+                occupied += sizes[i];
+            }
+        }
+
+        if (starDefinitions.Count == 0)
+        {
+            return sizes;
+        }
+
+        if (double.IsPositiveInfinity(available) && useMeasuredForStarWhenInfinite)
+        {
+            for (int i = 0; i < definitions.Count; i++)
+            {
+                if (definitions[i].UserSize.IsStar)
+                {
+                    sizes[i] = definitions[i].MeasureSize;
+                }
+            }
+            return sizes;
+        }
+
+        double remaining = Math.Max(0, usable - occupied);
+        var unresolved = new List<T>(starDefinitions);
+        double remainingWeight = unresolved.Sum(def => Math.Max(0, def.UserSize.Value));
+
+        while (unresolved.Count > 0 && remainingWeight > 0)
+        {
+            bool constrained = false;
+            for (int i = unresolved.Count - 1; i >= 0; i--)
+            {
+                var definition = unresolved[i];
+                int index = IndexOfDefinition(definitions, definition);
+                double proposed = remaining * definition.UserSize.Value / remainingWeight;
+                double clamped = ClampDefinitionSize(definition, proposed);
+
+                if (clamped <= definition.UserMinSize + 0.01 || clamped >= definition.UserMaxSize - 0.01)
+                {
+                    sizes[index] = clamped;
+                    remaining -= clamped;
+                    remainingWeight -= Math.Max(0, definition.UserSize.Value);
+                    unresolved.RemoveAt(i);
+                    constrained = true;
+                }
+            }
+
+            if (!constrained)
+            {
+                break;
+            }
+        }
+
+        if (remainingWeight > 0)
+        {
+            foreach (var definition in unresolved)
+            {
+                int index = IndexOfDefinition(definitions, definition);
+                double proposed = remaining * definition.UserSize.Value / remainingWeight;
+                sizes[index] = ClampDefinitionSize(definition, proposed);
+            }
+        }
+
+        return sizes;
+    }
+
+    private static int IndexOfDefinition<T>(IReadOnlyList<T> definitions, T definition)
+    {
+        for (int i = 0; i < definitions.Count; i++)
+        {
+            if (ReferenceEquals(definitions[i], definition))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static void ApplyFinalSizes<T>(IReadOnlyList<T> definitions, double[] sizes) where T : GridDefinitionBase
+    {
+        for (int i = 0; i < definitions.Count; i++)
+        {
+            definitions[i].FinalSize = sizes[i];
+        }
+    }
+
+    private static void CommitActualSizes(
+        IReadOnlyList<ColumnDefinition> columns,
+        IReadOnlyList<RowDefinition> rows,
+        bool useFinal)
+    {
+        foreach (var column in columns)
+        {
+            column.ActualWidth = useFinal ? column.FinalSize : column.MeasureSize;
+        }
+
+        foreach (var row in rows)
+        {
+            row.ActualHeight = useFinal ? row.FinalSize : row.MeasureSize;
+        }
+    }
+
+    private static void CalculateOffsets<T>(IReadOnlyList<T> definitions, double spacing) where T : GridDefinitionBase
+    {
+        double offset = 0;
+        foreach (var definition in definitions)
+        {
+            definition.Offset = offset;
+            offset += definition.FinalSize + spacing;
+        }
+    }
+
+    private static double GetRangeSize<T>(IReadOnlyList<T> definitions, int start, int span, double spacing, bool useFinal)
+        where T : GridDefinitionBase
+    {
+        double total = 0;
+        for (int i = start; i < start + span; i++)
+        {
+            total += useFinal ? definitions[i].FinalSize : definitions[i].MeasureSize;
+        }
+
+        if (span > 1)
+        {
+            total += (span - 1) * spacing;
+        }
+
+        return total;
+    }
+
+    private static double GetRangeSize(double[] sizes, int start, int span, double spacing)
+    {
+        double total = 0;
+        for (int i = start; i < start + span; i++)
+        {
+            total += sizes[i];
+        }
+
+        if (span > 1)
+        {
+            total += (span - 1) * spacing;
+        }
+
+        return total;
+    }
+
+    private static double SumMeasureSizes<T>(IReadOnlyList<T> definitions, double spacing) where T : GridDefinitionBase
+    {
+        double total = definitions.Sum(def => def.MeasureSize);
+        if (definitions.Count > 1)
+        {
+            total += (definitions.Count - 1) * spacing;
+        }
+        return total;
+    }
+
+    private IEnumerable<Element> EnumerateVisibleChildren()
+    {
+        foreach (var child in Children)
+        {
+            if (child is UIElement ui && !ui.IsVisible)
+            {
+                continue;
+            }
+
+            yield return child;
+        }
+    }
+
+    private static double GetDesiredSize(Element child, bool isColumn)
+        => isColumn ? child.DesiredSize.Width : child.DesiredSize.Height;
+
+    private static double ClampDefinitionSize(GridDefinitionBase definition, double size)
+        => Math.Clamp(size, definition.UserMinSize, definition.UserMaxSize);
+
+    private static double GetDefinitionWeight(GridDefinitionBase definition, bool useStarWeights)
+    {
+        if (useStarWeights && definition.UserSize.IsStar)
+        {
+            return Math.Max(0.0001, definition.UserSize.Value);
+        }
+
+        return 1;
+    }
+
+    private static void MarkOccupied(bool[,] occupied, Placement placement)
+    {
+        for (int row = placement.Row; row < placement.Row + placement.RowSpan; row++)
+        {
+            for (int column = placement.Column; column < placement.Column + placement.ColumnSpan; column++)
+            {
+                occupied[row, column] = true;
+            }
+        }
+    }
+
+    private static bool TryFindFirstFit(bool[,] occupied, int rowSpan, int columnSpan, out int row, out int column)
+    {
+        row = 0;
+        column = 0;
+
+        for (int r = 0; r < occupied.GetLength(0); r++)
+        {
+            for (int c = 0; c < occupied.GetLength(1); c++)
+            {
+                if (CanPlace(occupied, r, c, rowSpan, columnSpan))
+                {
+                    row = r;
+                    column = c;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryFindInRow(bool[,] occupied, int row, int rowSpan, int columnSpan, out int column)
+    {
+        column = 0;
+        for (int c = 0; c < occupied.GetLength(1); c++)
+        {
+            if (CanPlace(occupied, row, c, rowSpan, columnSpan))
+            {
+                column = c;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryFindInColumn(bool[,] occupied, int column, int rowSpan, int columnSpan, out int row)
+    {
+        row = 0;
+        for (int r = 0; r < occupied.GetLength(0); r++)
+        {
+            if (CanPlace(occupied, r, column, rowSpan, columnSpan))
+            {
+                row = r;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool CanPlace(bool[,] occupied, int row, int column, int rowSpan, int columnSpan)
+    {
+        if (row < 0 || column < 0)
+        {
+            return false;
+        }
+
+        if (row + rowSpan > occupied.GetLength(0) || column + columnSpan > occupied.GetLength(1))
         {
             return false;
         }
 
         for (int r = row; r < row + rowSpan; r++)
         {
-            for (int c = col; c < col + colSpan; c++)
+            for (int c = column; c < column + columnSpan; c++)
             {
                 if (occupied[r, c])
                 {
@@ -566,309 +1315,71 @@ public class Grid : Panel
         return true;
     }
 
-    private static bool TryFindFirstFit(bool[,] occupied, int rows, int cols, int rowSpan, int colSpan, out int row, out int col)
+    private sealed class DefinitionCollection<T> : Collection<T> where T : GridDefinitionBase
     {
-        row = 0;
-        col = 0;
+        private readonly Grid _owner;
 
-        rowSpan = Math.Clamp(rowSpan, 1, rows);
-        colSpan = Math.Clamp(colSpan, 1, cols);
-
-        for (int r = 0; r < rows; r++)
+        public DefinitionCollection(Grid owner)
         {
-            for (int c = 0; c < cols; c++)
-            {
-                if (CanPlace(occupied, r, c, rowSpan, colSpan))
-                {
-                    row = r;
-                    col = c;
-                    return true;
-                }
-            }
+            _owner = owner;
         }
 
-        return false;
-    }
-
-    private static bool TryFindInRow(bool[,] occupied, int rows, int cols, int row, int rowSpan, int colSpan, out int col)
-    {
-        col = 0;
-        rowSpan = Math.Clamp(rowSpan, 1, rows - row);
-        colSpan = Math.Clamp(colSpan, 1, cols);
-
-        for (int c = 0; c < cols; c++)
+        protected override void InsertItem(int index, T item)
         {
-            if (CanPlace(occupied, row, c, rowSpan, colSpan))
-            {
-                col = c;
-                return true;
-            }
+            ArgumentNullException.ThrowIfNull(item);
+            base.InsertItem(index, item);
+            item.Attach(_owner);
+            _owner.InvalidateMeasure();
         }
 
-        return false;
-    }
-
-    private static bool TryFindInColumn(bool[,] occupied, int rows, int cols, int col, int rowSpan, int colSpan, out int row)
-    {
-        row = 0;
-        rowSpan = Math.Clamp(rowSpan, 1, rows);
-        colSpan = Math.Clamp(colSpan, 1, cols - col);
-
-        for (int r = 0; r < rows; r++)
+        protected override void RemoveItem(int index)
         {
-            if (CanPlace(occupied, r, col, rowSpan, colSpan))
-            {
-                row = r;
-                return true;
-            }
+            this[index].Detach(_owner);
+            base.RemoveItem(index);
+            _owner.InvalidateMeasure();
         }
 
-        return false;
-    }
-
-    /// <summary>
-    /// Calculates Absolute and Auto definition sizes. Star definitions are deferred to <see cref="ResolveStarMeasure"/> or <see cref="ResolveStarArrange"/>.
-    /// </summary>
-    private double CalculateFixedLengths<T>(IList<T> definitions, bool isColumn) where T : class
-    {
-        double totalFixed = 0;
-
-        foreach (var def in definitions)
+        protected override void SetItem(int index, T item)
         {
-            var length = isColumn ? ((ColumnDefinition)(object)def).Width : ((RowDefinition)(object)def).Height;
-            var min = isColumn ? ((ColumnDefinition)(object)def).MinWidth : ((RowDefinition)(object)def).MinHeight;
-            var max = isColumn ? ((ColumnDefinition)(object)def).MaxWidth : ((RowDefinition)(object)def).MaxHeight;
-
-            if (length.IsAbsolute)
-            {
-                var size = Math.Clamp(length.Value, min, max);
-                SetActualSize(def, size, isColumn);
-                totalFixed += size;
-            }
-            else if (length.IsAuto)
-            {
-                double maxDesired = GetMaxDesiredSize(definitions, def, isColumn);
-                var size = Math.Clamp(maxDesired, min, max);
-                SetActualSize(def, size, isColumn);
-                totalFixed += size;
-            }
+            ArgumentNullException.ThrowIfNull(item);
+            this[index].Detach(_owner);
+            base.SetItem(index, item);
+            item.Attach(_owner);
+            _owner.InvalidateMeasure();
         }
 
-        return totalFixed;
-    }
-
-    /// <summary>
-    /// Resolves star definitions for the Measure pass.
-    /// Each star column is sized to the largest content-per-star-weight across all star definitions,
-    /// ensuring proportional sizing based on content. DesiredSize reflects content needs only,
-    /// not the parent's available space.
-    /// </summary>
-    private double ResolveStarMeasure<T>(IList<T> definitions, bool isColumn) where T : class
-    {
-        // Phase 1: Collect max content size per unit of star weight
-        double maxContentPerStar = 0;
-
-        foreach (var def in definitions)
+        protected override void ClearItems()
         {
-            var length = isColumn ? ((ColumnDefinition)(object)def).Width : ((RowDefinition)(object)def).Height;
-            if (!length.IsStar) continue;
-
-            double maxDesired = GetMaxDesiredSize(definitions, def, isColumn);
-            maxContentPerStar = Math.Max(maxContentPerStar, maxDesired / length.Value);
-        }
-
-        // Phase 2: Assign each star definition: maxContentPerStar * weight, clamped to Min/Max
-        double totalStar = 0;
-
-        foreach (var def in definitions)
-        {
-            var length = isColumn ? ((ColumnDefinition)(object)def).Width : ((RowDefinition)(object)def).Height;
-            if (!length.IsStar) continue;
-
-            var min = isColumn ? ((ColumnDefinition)(object)def).MinWidth : ((RowDefinition)(object)def).MinHeight;
-            var max = isColumn ? ((ColumnDefinition)(object)def).MaxWidth : ((RowDefinition)(object)def).MaxHeight;
-
-            var size = Math.Clamp(maxContentPerStar * length.Value, min, max);
-            SetActualSize(def, size, isColumn);
-            totalStar += size;
-        }
-
-        return totalStar;
-    }
-
-    /// <summary>
-    /// Resolves star definitions for the Arrange pass.
-    /// Distributes the remaining space (available minus fixed/auto) proportionally by star weight,
-    /// respecting Min/Max constraints. Definitions that hit their Min or Max are resolved first,
-    /// and remaining space is redistributed among unconstrained definitions.
-    /// </summary>
-    private void ResolveStarArrange<T>(IList<T> definitions, double available, double totalFixed, bool isColumn) where T : class
-    {
-        double remaining = Math.Max(0, available - totalFixed);
-        double totalStars = 0;
-
-        foreach (var def in definitions)
-        {
-            var length = isColumn ? ((ColumnDefinition)(object)def).Width : ((RowDefinition)(object)def).Height;
-            if (length.IsStar)
-                totalStars += length.Value;
-        }
-
-        if (totalStars <= 0) return;
-
-        // Phase 1: Identify constrained star definitions (hit Min or Max) and resolve them first.
-        // This prevents one constrained column from stealing space from others.
-        double constrainedTotal = 0;
-        double constrainedStars = 0;
-
-        foreach (var def in definitions)
-        {
-            var length = isColumn ? ((ColumnDefinition)(object)def).Width : ((RowDefinition)(object)def).Height;
-            if (!length.IsStar) continue;
-
-            var min = isColumn ? ((ColumnDefinition)(object)def).MinWidth : ((RowDefinition)(object)def).MinHeight;
-            var max = isColumn ? ((ColumnDefinition)(object)def).MaxWidth : ((RowDefinition)(object)def).MaxHeight;
-
-            double proportional = remaining * length.Value / totalStars;
-
-            if (proportional < min)
+            foreach (var item in this)
             {
-                SetActualSize(def, min, isColumn);
-                constrainedTotal += min;
-                constrainedStars += length.Value;
+                item.Detach(_owner);
             }
-            else if (proportional > max)
-            {
-                SetActualSize(def, max, isColumn);
-                constrainedTotal += max;
-                constrainedStars += length.Value;
-            }
-        }
 
-        // Phase 2: Distribute remaining space among unconstrained star definitions
-        double unconstrainedRemaining = Math.Max(0, remaining - constrainedTotal);
-        double unconstrainedStars = totalStars - constrainedStars;
-
-        if (unconstrainedStars > 0)
-        {
-            foreach (var def in definitions)
-            {
-                var length = isColumn ? ((ColumnDefinition)(object)def).Width : ((RowDefinition)(object)def).Height;
-                if (!length.IsStar) continue;
-
-                var min = isColumn ? ((ColumnDefinition)(object)def).MinWidth : ((RowDefinition)(object)def).MinHeight;
-                var max = isColumn ? ((ColumnDefinition)(object)def).MaxWidth : ((RowDefinition)(object)def).MaxHeight;
-
-                double proportional = remaining * length.Value / totalStars;
-                if (proportional >= min && proportional <= max)
-                {
-                    var size = unconstrainedRemaining * length.Value / unconstrainedStars;
-                    SetActualSize(def, Math.Clamp(size, min, max), isColumn);
-                }
-            }
+            base.ClearItems();
+            _owner.InvalidateMeasure();
         }
     }
 
-    /// <summary>
-    /// Gets the maximum desired size of children that span the given definition.
-    /// </summary>
-    private double GetMaxDesiredSize<T>(IList<T> definitions, T def, bool isColumn) where T : class
+    private readonly record struct Placement(
+        Element Child,
+        int Row,
+        int Column,
+        int RowSpan,
+        int ColumnSpan);
+
+    private enum CellGroup
     {
-        double maxDesired = 0;
-        int defIndex = definitions.IndexOf(def);
-
-        foreach (var child in Children)
-        {
-            if (child is UIElement ui && !ui.IsVisible)
-                continue;
-
-            int index = isColumn ? GetColumn(child) : GetRow(child);
-            int span = isColumn ? GetColumnSpan(child) : GetRowSpan(child);
-
-            if (index <= defIndex && index + span > defIndex)
-            {
-                double desired = isColumn ? child.DesiredSize.Width : child.DesiredSize.Height;
-                if (span > 1)
-                    desired = Math.Max(0, desired - (span - 1) * Spacing);
-                maxDesired = Math.Max(maxDesired, desired / span);
-            }
-        }
-
-        return maxDesired;
+        Group1,
+        Group2,
+        Group3,
+        Group4,
     }
 
-    private static void SetActualSize<T>(T def, double size, bool isColumn) where T : class
+    private enum MeasureMode
     {
-        if (isColumn)
-        {
-            ((ColumnDefinition)(object)def).ActualWidth = size;
-        }
-        else
-        {
-            ((RowDefinition)(object)def).ActualHeight = size;
-        }
+        Initial,
+        Constrained,
     }
 
-    private static void CalculateOffsets<T>(IList<T> definitions, double spacing) where T : class
-    {
-        double offset = 0;
-        foreach (var def in definitions)
-        {
-            if (def is ColumnDefinition col)
-            {
-                col.Offset = offset;
-                offset += col.ActualWidth + spacing;
-            }
-            else if (def is RowDefinition row)
-            {
-                row.Offset = offset;
-                offset += row.ActualHeight + spacing;
-            }
-        }
-    }
-
-    private void MeasureChildrenWithActuals(double colGaps, double rowGaps)
-    {
-        foreach (var child in Children)
-        {
-            if (child is UIElement ui && !ui.IsVisible)
-            {
-                continue;
-            }
-
-            int row = GetRow(child);
-            int col = GetColumn(child);
-            int rowSpan = GetRowSpan(child);
-            int colSpan = GetColumnSpan(child);
-
-            row = Math.Clamp(row, 0, _rowDefinitions.Count - 1);
-            col = Math.Clamp(col, 0, _columnDefinitions.Count - 1);
-            rowSpan = Math.Clamp(rowSpan, 1, _rowDefinitions.Count - row);
-            colSpan = Math.Clamp(colSpan, 1, _columnDefinitions.Count - col);
-
-            double width = 0;
-            for (int i = col; i < col + colSpan; i++)
-            {
-                width += _columnDefinitions[i].ActualWidth;
-            }
-
-            double height = 0;
-            for (int i = row; i < row + rowSpan; i++)
-            {
-                height += _rowDefinitions[i].ActualHeight;
-            }
-
-            if (colSpan > 1)
-            {
-                width += (colSpan - 1) * Spacing;
-            }
-
-            if (rowSpan > 1)
-            {
-                height += (rowSpan - 1) * Spacing;
-            }
-
-            child.Measure(new Size(width, height));
-        }
-    }
+    private readonly record struct SpanKey(int Start, int Span);
 }

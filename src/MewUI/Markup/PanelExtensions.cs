@@ -224,6 +224,12 @@ public static class PanelExtensions
         return grid;
     }
 
+    public static Grid ShowGridLine(this Grid grid, bool showGridLine = true)
+    {
+        grid.ShowGridLine = showGridLine;
+        return grid;
+    }
+
     private static IEnumerable<GridLength> ParseGridLengths(string definition)
     {
         var parts = definition.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
