@@ -58,12 +58,10 @@ internal sealed unsafe class Direct2DGraphicsContext : GraphicsContextBase
         _renderTarget = renderTarget;
         _renderTargetGeneration = renderTargetGeneration;
         D2D1VTable.BeginDraw((ID2D1RenderTarget*)_renderTarget);
-        // ClearType is only appropriate for opaque surfaces. For layered/per-pixel-alpha presentation
-        // (we render into an offscreen premultiplied bitmap), prefer grayscale to avoid D2D errors
-        // and color fringes.
-        var textAa = _hwnd == 0
-            ? D2D1_TEXT_ANTIALIAS_MODE.GRAYSCALE
-            : D2D1_TEXT_ANTIALIAS_MODE.CLEARTYPE;
+        // Always use ClearType. On transparent/layered surfaces this may produce minor color fringes
+        // at fully-transparent edges, but text on opaque backgrounds (the common case) benefits
+        // from full subpixel rendering quality.
+        var textAa = D2D1_TEXT_ANTIALIAS_MODE.CLEARTYPE;
         _useClearTypeText = textAa == D2D1_TEXT_ANTIALIAS_MODE.CLEARTYPE;
         D2D1VTable.SetTextAntialiasMode((ID2D1RenderTarget*)_renderTarget, textAa);
 
