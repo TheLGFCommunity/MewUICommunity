@@ -140,8 +140,8 @@ public sealed class OverlayLayer
     {
         for (int i = 0; i < _overlays.Count; i++)
         {
-            if (_overlays[i] is Control c)
-                c.NotifyThemeChanged(oldTheme, newTheme);
+            if (_overlays[i] is FrameworkElement fe)
+                fe.NotifyThemeChanged(oldTheme, newTheme);
         }
     }
 
@@ -149,8 +149,8 @@ public sealed class OverlayLayer
     {
         for (int i = 0; i < _overlays.Count; i++)
         {
-            if (_overlays[i] is Control c)
-                c.NotifyDpiChanged(oldDpi, newDpi);
+            if (_overlays[i] is FrameworkElement fe)
+                fe.NotifyDpiChanged(oldDpi, newDpi);
 
             _overlays[i].ClearDpiCacheDeep();
         }

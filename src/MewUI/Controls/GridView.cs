@@ -1212,9 +1212,9 @@ public sealed class GridView : VirtualizedItemsBase, IFocusIntoViewHost, IVirtua
 
             VisualTree.Visit(this, e =>
             {
-                if (e is Control c)
+                if (e is FrameworkElement fe)
                 {
-                    c.NotifyDpiChanged(old, dpi);
+                    fe.NotifyDpiChanged(old, dpi);
                 }
             });
 

@@ -123,9 +123,9 @@ internal sealed class PopupManager
                 entry.Chrome.NotifyThemeChanged(oldTheme, newTheme);
             }
 
-            if (entry.Element is Control c)
+            if (entry.Element is FrameworkElement fe)
             {
-                c.NotifyThemeChanged(oldTheme, newTheme);
+                fe.NotifyThemeChanged(oldTheme, newTheme);
             }
         }
     }
@@ -500,9 +500,9 @@ internal sealed class PopupManager
         VisualTree.Visit(popup, e =>
         {
             e.ClearDpiCache();
-            if (e is Control c)
+            if (e is FrameworkElement fe)
             {
-                c.NotifyDpiChanged(oldDpi, newDpi);
+                fe.NotifyDpiChanged(oldDpi, newDpi);
             }
         });
     }

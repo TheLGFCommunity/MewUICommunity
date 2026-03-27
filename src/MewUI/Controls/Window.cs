@@ -1858,9 +1858,9 @@ public partial class Window : ContentControl, ILayoutRoundingHost
 
         for (int i = 0; i < _adorners.Count; i++)
         {
-            if (_adorners[i].Element is Control c)
+            if (_adorners[i].Element is FrameworkElement fe)
             {
-                c.NotifyThemeChanged(oldTheme, newTheme);
+                fe.NotifyThemeChanged(oldTheme, newTheme);
             }
         }
 
@@ -1882,9 +1882,9 @@ public partial class Window : ContentControl, ILayoutRoundingHost
 
             VisitVisualTree(Content, e =>
             {
-                if (e is Control c)
+                if (e is FrameworkElement fe)
                 {
-                    c.NotifyDpiChanged(oldDpi, newDpi);
+                    fe.NotifyDpiChanged(oldDpi, newDpi);
                 }
             });
         }
@@ -1894,9 +1894,9 @@ public partial class Window : ContentControl, ILayoutRoundingHost
 
         for (int i = 0; i < _adorners.Count; i++)
         {
-            if (_adorners[i].Element is Control c)
+            if (_adorners[i].Element is FrameworkElement fe)
             {
-                c.NotifyDpiChanged(oldDpi, newDpi);
+                fe.NotifyDpiChanged(oldDpi, newDpi);
             }
 
             _adorners[i].Element.ClearDpiCacheDeep();
@@ -1956,6 +1956,7 @@ public partial class Window : ContentControl, ILayoutRoundingHost
         => _popupManager.RequestClosePopups(PopupCloseRequest.FocusChanged(newFocusedElement));
 
     internal void CancelImeComposition() => _backend?.CancelImeComposition();
+
     protected override UIElement? OnHitTest(Point point)
     {
         var overlayHit = OverlayLayer.HitTest(point);
