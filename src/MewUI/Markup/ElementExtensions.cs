@@ -780,4 +780,17 @@ public static class ElementExtensions
     }
 
     #endregion
+
+    #region Style
+
+    /// <summary>
+    /// Sets the style name for named style resolution from the nearest <see cref="StyleSheet"/>.
+    /// </summary>
+    public static T StyleName<T>(this T control, string name) where T : Control
+    {
+        control.StyleName = name;
+        return control;
+    }
+
+    #endregion
 }

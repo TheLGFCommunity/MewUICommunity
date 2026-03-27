@@ -382,7 +382,7 @@ public abstract class Control : FrameworkElement
             var type = GetType();
             while (type != null && type != typeof(UIElement))
             {
-                resolved = Theme.GetStyle(type);
+                resolved = Style.ForType(type);
                 if (resolved != null) break;
                 type = type.BaseType;
             }

@@ -3,7 +3,10 @@ using Aprillz.MewUI.Controls;
 
 namespace Aprillz.MewUI;
 
-public partial record class Theme
+/// <summary>
+/// Built-in default styles for framework controls.
+/// </summary>
+public static class DefaultStyles
 {
     private static readonly Transition[] ColorTransitions =
     [
@@ -30,13 +33,7 @@ public partial record class Theme
     /// <summary>
     /// Gets the default style for the specified control type, or null if none registered.
     /// </summary>
-    public Style? GetStyle(Type controlType) => GetStyleStatic(controlType);
-
-    /// <summary>
-    /// Gets the default style without requiring a Theme instance.
-    /// Styles are static (shared across all themes) and use Func&lt;Theme, T&gt; for dynamic values.
-    /// </summary>
-    internal static Style? GetStyleStatic(Type controlType)
+    public static Style? GetStyle(Type controlType)
     {
         _styles ??= BuildDefaultStyles();
         return _styles.GetValueOrDefault(controlType);
@@ -46,7 +43,7 @@ public partial record class Theme
     /// Registers an additional default style. Can be used by application code to add
     /// styles for custom control types.
     /// </summary>
-    public void RegisterStyle(Style style)
+    public static void RegisterStyle(Style style)
     {
         _styles ??= BuildDefaultStyles();
         _styles[style.TargetType] = style;
@@ -817,7 +814,7 @@ public partial record class Theme
                     Setters =
                     [
                         Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder),
-        
+
                     ],
                 },
                 new StateTrigger
@@ -826,7 +823,7 @@ public partial record class Theme
                     Setters =
                     [
                         Setter.Create(Control.BorderBrushProperty, t => t.Palette.ControlBorder.Lerp(t.Palette.Accent, 0.5)),
-        
+
                     ],
                 },
                 // Disabled (non-selected)

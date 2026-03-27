@@ -32,7 +32,7 @@ public static class BuiltInStyles
             ],
             Setters =
             [
-                Setter.Create(Control.BackgroundProperty, t => t.Palette.ButtonDisabledBackground.WithAlpha(0)),
+                Setter.Create(Control.BackgroundProperty, t => t.Palette.ButtonHoverBackground.WithAlpha(0)),
                 Setter.Create(Control.BorderThicknessProperty, 0.0),
             ],
             Triggers =
@@ -42,7 +42,7 @@ public static class BuiltInStyles
                     Match = VisualStateFlags.Hot,
                     Setters =
                     [
-                        Setter.Create(Control.BackgroundProperty, t => t.Palette.ButtonHoverBackground),
+                        Setter.Create(Control.BackgroundProperty, t => t.Palette.ButtonHoverBackground.WithAlpha(128)),
                     ],
                 },
                 new StateTrigger
@@ -81,7 +81,6 @@ public static class BuiltInStyles
             [
                 Setter.Create(Control.BackgroundProperty, t => t.Palette.Accent),
                 Setter.Create(Control.ForegroundProperty, t => t.Palette.AccentText),
-                Setter.Create(Control.BorderThicknessProperty, 0.0),
             ],
             Triggers =
             [
@@ -107,8 +106,8 @@ public static class BuiltInStyles
                     Exclude = VisualStateFlags.Enabled,
                     Setters =
                     [
-                        Setter.Create(Control.BackgroundProperty, t => t.Palette.DisabledAccent),
-                        Setter.Create(Control.ForegroundProperty, t => t.Palette.DisabledText.Lerp(t.Palette.AccentText,0.5)),
+                        Setter.Create(Control.BackgroundProperty, t => t.Palette.ButtonDisabledBackground),
+                        Setter.Create(Control.ForegroundProperty, t => t.Palette.DisabledText),
                     ],
                 },
             ],

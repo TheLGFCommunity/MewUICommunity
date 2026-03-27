@@ -8,10 +8,10 @@ public sealed class Style
 {
     /// <summary>
     /// Gets the default theme style for the specified control type.
-    /// Equivalent to <c>Theme.GetStyle(type)</c> but without requiring a Theme instance.
+    /// Equivalent to <c>DefaultStyles.GetStyle(type)</c>.
     /// </summary>
     public static Style? ForType(Type controlType)
-        => Theme.GetStyleStatic(controlType);
+        => DefaultStyles.GetStyle(controlType);
 
     /// <summary>
     /// Gets the default theme style for the specified control type.
