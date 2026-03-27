@@ -174,6 +174,22 @@ partial class GalleryView
             MenusCard(),
 
             Card(
+                "Custom Chrome Window",
+                new StackPanel()
+                    .Vertical()
+                    .Spacing(8)
+                    .Children(
+                        new TextBlock()
+                            .FontSize(11)
+                            .TextWrapping(TextWrapping.Wrap)
+                            .Text("Transparent window with custom title bar,\ndraggable header, and themed chrome."),
+                        new Button()
+                            .Content("Open CustomWindow")
+                            .OnClick(() => new CustomWindowSample().Show(window))
+                    )
+            ),
+
+            Card(
                 "ShowDialogAsync",
                 new StackPanel()
                     .Vertical()
@@ -343,7 +359,6 @@ partial class GalleryView
 
     private FrameworkElement MenusCard()
     {
-        var p = ModifierKeys.Primary;
         var shortcutLog = new TextBlock()
             .FontSize(11)
             .TextWrapping(TextWrapping.Wrap)
@@ -351,6 +366,28 @@ partial class GalleryView
 
         void OnShortcut(string action) => shortcutLog.Text = $"[{DateTime.Now:HH:mm:ss.fff}] {action}";
 
+        return Card(
+                "MenuBar (Multi-depth, AccessKeys + Shortcuts)",
+                new StackPanel()
+                    .Width(290)
+                    .Vertical()
+                    .Spacing(8)
+                    .Children(
+                        CreateMenu(OnShortcut),
+
+                        new TextBlock()
+                            .FontSize(11)
+                            .TextWrapping(TextWrapping.Wrap)
+                            .Text("Hover to switch menus while a popup is open. Submenus supported."),
+
+                        shortcutLog
+                    )
+            );
+    }
+
+    public static MenuBar CreateMenu(Action<string> OnShortcut)
+    {
+        var p = ModifierKeys.Primary;
         var fileMenu = new Menu()
             .Item("_New", () => OnShortcut("File > New document created"), shortcut: new KeyGesture(Key.N, p))
             .Item("_Open...", () => OnShortcut("File > Open file dialog"), shortcut: new KeyGesture(Key.O, p))
@@ -389,30 +426,14 @@ partial class GalleryView
                 .Item("Zoom _Out", () => OnShortcut("View > Zoom > Zoom out"), shortcut: new KeyGesture(Key.Subtract, p))
                 .Item("_Reset", () => OnShortcut("View > Zoom > Reset to 100%"), shortcut: new KeyGesture(Key.D0, p))
             );
-
-        return Card(
-                "MenuBar (Multi-depth, AccessKeys + Shortcuts)",
-                new StackPanel()
-                    .Width(290)
-                    .Vertical()
-                    .Spacing(8)
-                    .Children(
-                        new MenuBar()
+        var menu = new MenuBar()
                             .Height(28)
                             .Items(
                                 new MenuItem("_File").Menu(fileMenu),
                                 new MenuItem("_Edit").Menu(editMenu),
                                 new MenuItem("_View").Menu(viewMenu)
-                            ),
-
-                        new TextBlock()
-                            .FontSize(11)
-                            .TextWrapping(TextWrapping.Wrap)
-                            .Text("Hover to switch menus while a popup is open. Submenus supported."),
-
-                        shortcutLog
-                    )
-            );
+                            );
+        return menu;
     }
 
     private FrameworkElement PromptDialogCard()
@@ -587,9 +608,11 @@ partial class GalleryView
                 case Win32NativeMessageEventArgs win32:
                     hookLog.Value = $"Win32 #{messageCount}: msg=0x{win32.Msg:X4} wParam=0x{win32.WParam:X} lParam=0x{win32.LParam:X}";
                     break;
+
                 case X11NativeMessageEventArgs x11:
                     hookLog.Value = $"X11 #{messageCount}: type={x11.EventType}";
                     break;
+
                 case MacOSNativeMessageEventArgs macos:
                     hookLog.Value = $"macOS #{messageCount}: type={macos.EventType}";
                     break;
