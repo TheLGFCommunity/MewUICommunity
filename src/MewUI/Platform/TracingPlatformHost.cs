@@ -192,6 +192,11 @@ internal sealed class TracingPlatformHost : IPlatformHost
             DiagLog.Write($"[WindowBackend#{_backendId}] Dispose windowTitle='{_window.Title}'");
             _innerBackend.Dispose();
         }
+
+        public void CancelImeComposition()
+        {
+            _innerBackend.CancelImeComposition();
+        }
     }
 
     private sealed class TracingDispatcher : IDispatcher, IDispatcherCore

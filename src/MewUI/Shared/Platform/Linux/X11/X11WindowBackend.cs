@@ -2251,6 +2251,13 @@ internal sealed class X11WindowBackend : IWindowBackend
             NativeX11.XSetICFocus(_xic);
     }
 
+    public void CancelImeComposition()
+    {
+        if (_xic == 0) return;
+        NativeX11.XUnsetICFocus(_xic);
+        NativeX11.XSetICFocus(_xic);
+    }
+
     private sealed class X11GlxWindowSurface : IX11GlxWindowSurface
     {
         public WindowSurfaceKind Kind => WindowSurfaceKind.OpenGL;

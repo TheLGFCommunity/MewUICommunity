@@ -563,6 +563,8 @@ internal sealed class MacOSWindowBackend : IWindowBackend
     public void SetImeMode(Input.ImeMode mode)
     { }
 
+    public void CancelImeComposition() { }
+
     public void Dispose()
     {
         _window.ClearMouseOverState();

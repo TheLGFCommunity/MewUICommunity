@@ -81,4 +81,6 @@ internal sealed class LinuxWindowBackend : IWindowBackend
     }
 
     public void SetImeMode(Input.ImeMode mode) { }
+
+    public void CancelImeComposition() { }
 }
