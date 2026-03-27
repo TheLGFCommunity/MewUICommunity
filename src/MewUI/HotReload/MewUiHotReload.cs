@@ -63,7 +63,7 @@ public static class MewUiHotReload
     private static void ReloadWindowIfEnabled(Window window, HashSet<Type> types)
     {
         var build = window.BuildCallback;
-        if (build != null && types.Contains(window.GetType()))
+        if (build != null /*&& types.Contains(window.GetType())*/) // Temporarily disable type filtering
         {
             build(window);
 

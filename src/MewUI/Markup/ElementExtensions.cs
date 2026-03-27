@@ -109,6 +109,9 @@ public static class ElementExtensions
     /// <summary>
     /// Sets the window to open centered on the primary screen. Must be called before <see cref="Window.Show"/>.
     /// </summary>
+    /// <remarks>
+    /// Do not call inside <c>OnBuild</c> — setting startup position after the window is shown throws an exception.
+    /// </remarks>
     public static Window StartCenterScreen(this Window window)
     {
         window.StartupLocation = WindowStartupLocation.CenterScreen;
@@ -119,6 +122,9 @@ public static class ElementExtensions
     /// Sets the window to open centered on the owner window.
     /// The owner is provided when calling <see cref="Window.Show(Window?)"/> or <see cref="Window.ShowDialogAsync(Window?)"/>.
     /// </summary>
+    /// <remarks>
+    /// Do not call inside <c>OnBuild</c> — setting startup position after the window is shown throws an exception.
+    /// </remarks>
     public static Window StartCenterOwner(this Window window)
     {
         window.StartupLocation = WindowStartupLocation.CenterOwner;
@@ -129,6 +135,9 @@ public static class ElementExtensions
     /// Sets the window to open at the specified position in DIPs (primary monitor DPI basis).
     /// Must be called before <see cref="Window.Show"/>.
     /// </summary>
+    /// <remarks>
+    /// Do not call inside <c>OnBuild</c> — setting startup position after the window is shown throws an exception.
+    /// </remarks>
     public static Window StartManualPosition(this Window window, double leftDip, double topDip)
     {
         window.StartupLocation = WindowStartupLocation.Manual;
