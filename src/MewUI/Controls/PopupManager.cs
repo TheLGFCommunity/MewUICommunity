@@ -468,6 +468,13 @@ internal sealed class PopupManager
         var focused = _window.FocusManager.FocusedElement;
         if (focused == null)
         {
+            // Even if no element is focused, the popup detach may have left a stale IsFocusWithin
+            // on the owner because the parent chain was severed before ClearFocus could walk it.
+            if (owner.IsFocusWithin)
+            {
+                owner.SetFocusWithin(false);
+            }
+
             return;
         }
 
@@ -484,6 +491,13 @@ internal sealed class PopupManager
         else
         {
             _window.FocusManager.ClearFocus();
+
+            // The popup element is already detached (Parent = null), so ClearFocus cannot walk
+            // the parent chain to clear IsFocusWithin on the owner. Clear it explicitly.
+            if (owner.IsFocusWithin)
+            {
+                owner.SetFocusWithin(false);
+            }
         }
     }
 

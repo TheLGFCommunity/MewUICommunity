@@ -452,29 +452,21 @@ public abstract class DropDownBase : Control, IPopupOwner
         try { IsDropDownOpen = false; }
         finally { _closingPopup = false; }
         _lastPopupBounds = null;
+        InvalidateVisual();
 
         if (kind == PopupCloseKind.Lifecycle)
         {
             return;
         }
 
-        var root = FindVisualRoot();
-        if (root is Window window)
+        if (kind == PopupCloseKind.UserInitiated)
         {
-            var focused = window.FocusManager.FocusedElement;
-            bool focusWasInPopup = focused != null && (ReferenceEquals(focused, popup) || VisualTree.IsInSubtreeOf(focused, popup));
-
-            if (kind == PopupCloseKind.UserInitiated)
+            // When the drop-down itself initiates closing (toggle, selection commit, etc.),
+            // keep keyboard focus on the owner so navigation continues naturally.
+            // For Policy closes, PopupManager.EnsureFocusNotInClosedPopup handles focus cleanup.
+            if (FindVisualRoot() is Window window)
             {
-                // When the drop-down itself initiates closing (toggle, selection commit, etc.),
-                // keep keyboard focus on the owner so navigation continues naturally.
                 window.FocusManager.SetFocus(this);
-            }
-            else if (focusWasInPopup)
-            {
-                // A policy-driven close (click outside, focus moved) can detach the currently focused
-                // element if it lives inside the popup. Clear to avoid leaving a stale focused element.
-                window.FocusManager.ClearFocus();
             }
         }
     }
