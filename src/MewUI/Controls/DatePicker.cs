@@ -67,6 +67,7 @@ public sealed class DatePicker : DropDownBase
         _calendar = new Calendar
         {
             FirstDayOfWeek = FirstDayOfWeek,
+            StyleName = BuiltInStyles.DatePickerPopup,
         };
 
         if (SelectedDate.HasValue)

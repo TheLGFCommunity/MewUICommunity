@@ -354,6 +354,7 @@ public sealed partial class ComboBox : DropDownBase
     protected override UIElement CreatePopupContent()
     {
         _popupList = new ListBox();
+        _popupList.StyleName = BuiltInStyles.ComboBoxPopup;
         _popupList.ZebraStriping = ZebraStriping;
         _popupList.SelectionChanged += OnPopupListSelectionChanged;
         _popupList.ItemActivated += OnPopupListItemActivated;
