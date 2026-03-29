@@ -379,6 +379,10 @@ public partial class Window : ContentControl, ILayoutRoundingHost
         MewProperty<bool>.Register<Window>(nameof(AllowsTransparency), false, MewPropertyOptions.AffectsRender,
             static (self, _, _) => self.OnAllowsTransparencyChanged());
 
+    public static readonly MewProperty<double> ExtendClientAreaTitleBarHeightProperty =
+        MewProperty<double>.Register<Window>(nameof(ExtendClientAreaTitleBarHeight), 0.0, MewPropertyOptions.None,
+            static (self, _, _) => self.OnExtendClientAreaChanged());
+
     public static readonly MewProperty<bool> UseLayoutRoundingProperty =
         MewProperty<bool>.Register<Window>(nameof(UseLayoutRounding), true, MewPropertyOptions.None);
 
@@ -488,10 +492,45 @@ public partial class Window : ContentControl, ILayoutRoundingHost
         set => SetValue(AllowsTransparencyProperty, value);
     }
 
+    /// <summary>
+    /// Gets or sets the height of the custom title bar area (in DIPs).
+    /// When set to a value greater than 0, the client area extends into the title bar,
+    /// hiding the default title bar while preserving the native frame (rounded corners, shadow).
+    /// Set to 0 to restore the default title bar.
+    /// </summary>
+    public double ExtendClientAreaTitleBarHeight
+    {
+        get => GetValue(ExtendClientAreaTitleBarHeightProperty);
+        set => SetValue(ExtendClientAreaTitleBarHeightProperty, value);
+    }
+
+    /// <summary>
+    /// Gets the native window chrome capabilities supported by the current platform.
+    /// </summary>
+    public WindowChromeCapabilities ChromeCapabilities => _backend?.ChromeCapabilities ?? WindowChromeCapabilities.None;
+
+    /// <summary>
+    /// Gets whether the platform provides native chrome buttons (close, minimize, maximize)
+    /// when <see cref="ExtendClientAreaTitleBarHeight"/> is active.
+    /// </summary>
+    public bool HasNativeChromeButtons => ChromeCapabilities.HasFlag(WindowChromeCapabilities.NativeChromeButtons);
+
+    /// <summary>
+    /// Gets the reserved area (in DIPs) for native chrome buttons.
+    /// Use as margin/padding on the title bar to avoid overlapping native buttons.
+    /// </summary>
+    public Thickness NativeChromeButtonInset => _backend?.NativeChromeButtonInset ?? default;
+
+    /// <summary>
+    /// Sets the native window border color (Win11+). Use null to restore default.
+    /// </summary>
+    public void SetWindowBorderColor(Color? color) => _backend?.SetWindowBorderColor(color);
+
     private void OnTitleChanged() => _backend?.SetTitle(Title);
     private void OnIconChanged() => _backend?.SetIcon(Icon);
     private void OnOpacityChanged() => _backend?.SetOpacity(Opacity);
     private void OnAllowsTransparencyChanged() => _backend?.SetAllowsTransparency(AllowsTransparency);
+    private void OnExtendClientAreaChanged() => _backend?.SetExtendClientAreaToTitleBar(ExtendClientAreaTitleBarHeight);
 
     /// <summary>
     /// Gets the actual window client width in DIPs.
@@ -609,6 +648,11 @@ public partial class Window : ContentControl, ILayoutRoundingHost
     /// </summary>
     public void DragMove() => _backend?.BeginDragMove();
 
+    /// <summary>
+    /// Initiates a window resize from the specified edge using the platform's native mechanism.
+    /// </summary>
+    public void DragResize(ResizeEdge edge) => _backend?.BeginDragResize(edge);
+
     private bool _windowStateFromBackend;
 
     private void OnWindowStateChanged(WindowState newState)
@@ -620,6 +664,11 @@ public partial class Window : ContentControl, ILayoutRoundingHost
 
         if (!_windowStateFromBackend)
             _backend?.SetWindowState(newState);
+
+        // Force WM_NCCALCSIZE recalculation when using extended client area,
+        // so the maximized frame compensation is applied/removed.
+        if (ExtendClientAreaTitleBarHeight > 0)
+            _backend?.SetExtendClientAreaToTitleBar(ExtendClientAreaTitleBarHeight);
 
         WindowStateChanged?.Invoke(newState);
         RequerySuggested();
@@ -918,7 +967,13 @@ public partial class Window : ContentControl, ILayoutRoundingHost
 
     internal void RaiseActivated() => Activated?.Invoke();
 
-    internal void RaiseDeactivated() => Deactivated?.Invoke();
+    internal void RaiseDeactivated()
+    {
+        // Close non-stays-open popups (ContextMenu, ComboBox dropdown, ToolTip, etc.)
+        _popupManager.RequestClosePopups(PopupCloseRequest.Explicit());
+
+        Deactivated?.Invoke();
+    }
 
     internal void RaiseDragEnter(DragEventArgs e) => DragEnter?.Invoke(e);
 
@@ -1250,6 +1305,8 @@ public partial class Window : ContentControl, ILayoutRoundingHost
 
         _backend = Application.Current.PlatformHost.CreateWindowBackend(this);
         _backend.SetResizable(WindowSize.IsResizable);
+        if (ExtendClientAreaTitleBarHeight > 0)
+            _backend.SetExtendClientAreaToTitleBar(ExtendClientAreaTitleBarHeight);
     }
 
     /// <summary>
@@ -1569,6 +1626,8 @@ public partial class Window : ContentControl, ILayoutRoundingHost
         _backend.SetIcon(Icon);
         _backend.SetOpacity(Opacity);
         _backend.SetAllowsTransparency(AllowsTransparency);
+        if (ExtendClientAreaTitleBarHeight > 0)
+            _backend.SetExtendClientAreaToTitleBar(ExtendClientAreaTitleBarHeight);
         if (!double.IsNaN(WindowSize.Width) && !double.IsNaN(WindowSize.Height))
             _backend.SetClientSize(WindowSize.Width, WindowSize.Height);
     }

@@ -62,6 +62,9 @@ internal static partial class Imm32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool ImmSetCandidateWindow(nint hIMC, ref CANDIDATEFORM lpCandidate);
 
+    [LibraryImport("imm32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ImmSetCompositionFont(nint hIMC, ref Native.Structs.LOGFONT lplf);
 
     [StructLayout(LayoutKind.Sequential)]
     public struct CANDIDATEFORM

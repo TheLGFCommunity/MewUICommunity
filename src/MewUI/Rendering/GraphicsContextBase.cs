@@ -219,6 +219,8 @@ public abstract class GraphicsContextBase : IGraphicsContext
 
     public abstract double DpiScale { get; }
 
+    public virtual bool EnableAlphaTextHint { get; set; }
+
     public abstract void Clear(Color color);
 
     public abstract void DrawPath(PathGeometry path, Color color, double thickness = 1);

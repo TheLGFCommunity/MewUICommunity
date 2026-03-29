@@ -62,6 +62,11 @@ public interface IWindowBackend : IDisposable
     void BeginDragMove() { }
 
     /// <summary>
+    /// Initiates a window resize operation from the specified edge using the platform's native mechanism.
+    /// </summary>
+    void BeginDragResize(Controls.ResizeEdge edge) { }
+
+    /// <summary>
     /// Invalidates the window so it will be repainted.
     /// </summary>
     /// <param name="erase">Whether the background should be erased (platform dependent).</param>
@@ -174,4 +179,31 @@ public interface IWindowBackend : IDisposable
     /// Cancels the current IME composition without committing.
     /// </summary>
     void CancelImeComposition();
+
+    /// <summary>
+    /// Extends the client area into the title bar, hiding the default title bar
+    /// while preserving the native frame (rounded corners, shadow, system buttons).
+    /// </summary>
+    /// <param name="titleBarHeight">The height (in DIPs) of the custom title bar area.
+    /// Use 0 to restore the default title bar.</param>
+    void SetExtendClientAreaToTitleBar(double titleBarHeight) { }
+
+    /// <summary>
+    /// Sets the native window border color (Win11+, macOS).
+    /// Use <see langword="null"/> to restore the default.
+    /// </summary>
+    void SetWindowBorderColor(Color? color) { }
+
+    /// <summary>
+    /// Gets the native window chrome capabilities supported by this platform.
+    /// </summary>
+    Controls.WindowChromeCapabilities ChromeCapabilities => Controls.WindowChromeCapabilities.None;
+
+    /// <summary>
+    /// Gets the reserved area (in DIPs) for native chrome buttons when
+    /// <see cref="Controls.WindowChromeCapabilities.NativeChromeButtons"/> is supported.
+    /// Content should avoid overlapping this area.
+    /// Returns <see cref="Thickness.Zero"/> if not applicable.
+    /// </summary>
+    Thickness NativeChromeButtonInset => default;
 }

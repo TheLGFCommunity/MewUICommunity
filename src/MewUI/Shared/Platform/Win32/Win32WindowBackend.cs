@@ -1,7 +1,5 @@
 using System.Buffers;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 using System.Text;
 
 using Aprillz.MewUI.Diagnostics;
@@ -98,6 +96,25 @@ internal sealed class Win32WindowBackend : IWindowBackend
         if (Handle == 0) return;
         User32.ReleaseCapture();
         _ = User32.SendMessage(Handle, WindowMessages.WM_NCLBUTTONDOWN, (nint)2 /* HTCAPTION */, 0);
+    }
+
+    public void BeginDragResize(Controls.ResizeEdge edge)
+    {
+        if (Handle == 0) return;
+        int htCode = edge switch
+        {
+            Controls.ResizeEdge.Left => 10,        // HTLEFT
+            Controls.ResizeEdge.Right => 11,       // HTRIGHT
+            Controls.ResizeEdge.Top => 12,         // HTTOP
+            Controls.ResizeEdge.TopLeft => 13,     // HTTOPLEFT
+            Controls.ResizeEdge.TopRight => 14,    // HTTOPRIGHT
+            Controls.ResizeEdge.Bottom => 15,      // HTBOTTOM
+            Controls.ResizeEdge.BottomLeft => 16,  // HTBOTTOMLEFT
+            Controls.ResizeEdge.BottomRight => 17, // HTBOTTOMRIGHT
+            _ => 15,
+        };
+        User32.ReleaseCapture();
+        _ = User32.SendMessage(Handle, WindowMessages.WM_NCLBUTTONDOWN, (nint)htCode, 0);
     }
 
     public void SetWindowState(Controls.WindowState state)
@@ -240,6 +257,138 @@ internal sealed class Win32WindowBackend : IWindowBackend
         Invalidate(erase: false);
     }
 
+    private double _extendTitleBarHeight;
+
+    public void SetExtendClientAreaToTitleBar(double titleBarHeight)
+    {
+        _extendTitleBarHeight = titleBarHeight;
+        if (Handle == 0) return;
+
+        double dpiScale = GetDpiForWindow(Handle) / 96.0;
+        int topPx = titleBarHeight > 0 ? (int)(titleBarHeight * dpiScale) : 0;
+
+        if (topPx > 0)
+        {
+            // Win11+: extend by title bar height to preserve rounded corners.
+            // Win7/Win10: extend by 1px to preserve DWM shadow without heavy Aero Glass effect.
+            int extendPx = IsWindows11OrLater ? topPx : 1;
+            var margins = new Native.Dwmapi.MARGINS { cyTopHeight = extendPx };
+            Native.Dwmapi.DwmExtendFrameIntoClientArea(Handle, ref margins);
+        }
+        else
+        {
+            var margins = new Native.Dwmapi.MARGINS();
+            Native.Dwmapi.DwmExtendFrameIntoClientArea(Handle, ref margins);
+        }
+
+        // Force WM_NCCALCSIZE to recalculate.
+        const uint SWP_FRAMECHANGED = 0x0020;
+        const uint SWP_NOMOVE = 0x0002;
+        const uint SWP_NOSIZE = 0x0001;
+        const uint SWP_NOZORDER = 0x0004;
+        const uint SWP_NOACTIVATE = 0x0010;
+        User32.SetWindowPos(Handle, 0, 0, 0, 0, 0,
+            SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+
+        Invalidate(erase: true);
+    }
+
+    public void SetWindowBorderColor(Color? color)
+    {
+        if (Handle == 0 || !IsWindows11OrLater) return;
+
+        // COLORREF = 0x00BBGGRR. Use DWMWA_COLOR_NONE (0xFFFFFFFE) to restore default.
+        int colorRef = color.HasValue
+            ? color.Value.R | (color.Value.G << 8) | (color.Value.B << 16)
+            : unchecked((int)0xFFFFFFFE); // DWMWA_COLOR_NONE
+        Native.Dwmapi.DwmSetWindowAttribute(Handle,
+            Native.Dwmapi.DwmWindowAttribute.DWMWA_BORDER_COLOR,
+            ref colorRef, sizeof(int));
+    }
+
+    public Controls.WindowChromeCapabilities ChromeCapabilities
+    {
+        get
+        {
+            bool dwmEnabled = Native.Dwmapi.DwmIsCompositionEnabled(out int enabled) == 0 && enabled != 0;
+            var caps = dwmEnabled
+                ? Controls.WindowChromeCapabilities.ExtendClientArea
+                : Controls.WindowChromeCapabilities.None;
+            if (IsWindows11OrLater)
+                caps |= Controls.WindowChromeCapabilities.NativeBorderColor
+                      | Controls.WindowChromeCapabilities.NativeWindowBorder;
+            return caps;
+        }
+    }
+
+    private static bool IsWindows11OrLater
+        => Environment.OSVersion.Version.Build >= 22000;
+
+    private nint HandleExtendedTitleBarHitTest(nint lParam)
+    {
+        int screenX = (short)(lParam.ToInt64() & 0xFFFF);
+        int screenY = (short)((lParam.ToInt64() >> 16) & 0xFFFF);
+
+        var pt = new Native.Structs.POINT(screenX, screenY);
+        User32.ScreenToClient(Handle, ref pt);
+
+        // Window client rect in pixels.
+        User32.GetClientRect(Handle, out var clientRect);
+        int w = clientRect.right;
+        int h = clientRect.bottom;
+
+        double dpiScale = GetDpiForWindow(Handle) / 96.0;
+        int borderPx = Math.Max(1, (int)(6 * dpiScale)); // resize border thickness
+        int titleBarPx = (int)(_extendTitleBarHeight * dpiScale);
+
+        const int HTCLIENT = 1;
+        const int HTCAPTION = 2;
+        const int HTLEFT = 10;
+        const int HTRIGHT = 11;
+        const int HTTOP = 12;
+        const int HTTOPLEFT = 13;
+        const int HTTOPRIGHT = 14;
+        const int HTBOTTOM = 15;
+        const int HTBOTTOMLEFT = 16;
+        const int HTBOTTOMRIGHT = 17;
+
+        // Resize borders (skip when maximized — no resize in maximized state).
+        if (Window.WindowState != Controls.WindowState.Maximized && Window.WindowSize.IsResizable)
+        {
+            bool left = pt.x < borderPx;
+            bool right = pt.x >= w - borderPx;
+            bool top = pt.y < borderPx;
+            bool bottom = pt.y >= h - borderPx;
+
+            if (top && left) return HTTOPLEFT;
+            if (top && right) return HTTOPRIGHT;
+            if (bottom && left) return HTBOTTOMLEFT;
+            if (bottom && right) return HTBOTTOMRIGHT;
+            if (left) return HTLEFT;
+            if (right) return HTRIGHT;
+            if (top) return HTTOP;
+            if (bottom) return HTBOTTOM;
+        }
+
+        // Title bar area.
+        if (pt.y < titleBarPx)
+        {
+            double dipX = pt.x / dpiScale;
+            double dipY = pt.y / dpiScale;
+            var hit = (Window.Content as Controls.UIElement)?.HitTest(new Point(
+                dipX + Window.Padding.Left,
+                dipY + Window.Padding.Top));
+
+            // Interactive control — let it handle the click.
+            if (hit != null && hit != Window.Content && (hit.Focusable || hit is not Controls.Panel))
+                return HTCLIENT;
+
+            return HTCAPTION;
+        }
+
+        return HTCLIENT;
+    }
+
     public void SetTitle(string title)
     {
         if (Handle != 0)
@@ -379,6 +528,33 @@ internal sealed class Win32WindowBackend : IWindowBackend
                 if (_allowsTransparency)
                 {
                     return HandleNcHitTest(lParam);
+                }
+                if (_extendTitleBarHeight > 0)
+                {
+                    return HandleExtendedTitleBarHitTest(lParam);
+                }
+                return User32.DefWindowProc(Handle, msg, wParam, lParam);
+
+            case 0x0083: // WM_NCCALCSIZE
+                if (_extendTitleBarHeight > 0 && wParam != 0)
+                {
+                    // Remove the default non-client area (title bar) by not deflating the rect.
+                    // When maximized, Windows extends the window by the resize border size beyond
+                    // the monitor edges. Compensate by inflating inward by the frame thickness.
+                    if (Window.WindowState == Controls.WindowState.Maximized)
+                    {
+                        int frame = User32.GetSystemMetrics(92 /* SM_CXPADDEDBORDER */)
+                                  + User32.GetSystemMetrics(33 /* SM_CYSIZEFRAME */);
+                        unsafe
+                        {
+                            var rgrc = (Native.Structs.RECT*)lParam;
+                            rgrc->left += frame;
+                            rgrc->top += frame;
+                            rgrc->right -= frame;
+                            rgrc->bottom -= frame;
+                        }
+                    }
+                    return 0;
                 }
                 return User32.DefWindowProc(Handle, msg, wParam, lParam);
 
@@ -967,7 +1143,7 @@ internal sealed class Win32WindowBackend : IWindowBackend
             //   into a bitmap of client size, so any border would reintroduce hit-test/render offsets.
             // - If we later want native edge resizing, implement it via a custom hit test / sizing
             //   strategy instead of relying on the system non-client frame.
-            return WindowStyles.WS_POPUP | WindowStyles.WS_SYSMENU;
+            return WindowStyles.WS_POPUP | WindowStyles.WS_SYSMENU | WindowStyles.WS_THICKFRAME;
         }
 
         {
@@ -1334,6 +1510,11 @@ internal sealed class Win32WindowBackend : IWindowBackend
         Window.SetClientSizeDip(clientRect.Width / Window.DpiScale, clientRect.Height / Window.DpiScale);
 
         Window.RaiseDpiChanged(oldDpi, newDpi);
+
+        // Re-apply DWM extended frame with updated DPI scale.
+        if (_extendTitleBarHeight > 0)
+            SetExtendClientAreaToTitleBar(_extendTitleBarHeight);
+
         Window.PerformLayout();
         Window.Invalidate();
 
@@ -1452,6 +1633,14 @@ internal sealed class Win32WindowBackend : IWindowBackend
     {
         const int HTNOWHERE = 0;
         const int HTCLIENT = 1;
+        const int HTLEFT = 10;
+        const int HTRIGHT = 11;
+        const int HTTOP = 12;
+        const int HTTOPLEFT = 13;
+        const int HTTOPRIGHT = 14;
+        const int HTBOTTOM = 15;
+        const int HTBOTTOMLEFT = 16;
+        const int HTBOTTOMRIGHT = 17;
 
         if (Handle == 0)
         {
@@ -1468,12 +1657,34 @@ internal sealed class Win32WindowBackend : IWindowBackend
             return HTCLIENT;
         }
 
-        if (pt.x >= 0 && pt.y >= 0 && pt.x < clientRect.Width && pt.y < clientRect.Height)
+        int w = clientRect.Width;
+        int h = clientRect.Height;
+
+        if (pt.x < 0 || pt.y < 0 || pt.x >= w || pt.y >= h)
+            return HTNOWHERE;
+
+        // Resize border detection for transparent windows (shadow area).
+        double dpiScale = GetDpiForWindow(Handle) / 96.0;
+        int grip = Math.Max(1, (int)(12 * dpiScale)); // shadow extent area
+
+        if (Window.WindowState != Controls.WindowState.Maximized)
         {
-            return HTCLIENT;
+            bool left = pt.x < grip;
+            bool right = pt.x >= w - grip;
+            bool top = pt.y < grip;
+            bool bottom = pt.y >= h - grip;
+
+            if (top && left) return HTTOPLEFT;
+            if (top && right) return HTTOPRIGHT;
+            if (bottom && left) return HTBOTTOMLEFT;
+            if (bottom && right) return HTBOTTOMRIGHT;
+            if (left) return HTLEFT;
+            if (right) return HTRIGHT;
+            if (top) return HTTOP;
+            if (bottom) return HTBOTTOM;
         }
 
-        return HTNOWHERE;
+        return HTCLIENT;
     }
 
     private ModifierKeys GetModifierKeys()
@@ -1684,6 +1895,20 @@ internal sealed class Win32WindowBackend : IWindowBackend
                 },
             };
             Imm32.ImmSetCandidateWindow(himc, ref candForm);
+
+            // Set composition font so third-party IMEs (e.g. Sogou) can determine
+            // candidate window size and position correctly.
+            if (client is Controls.Control ctl)
+            {
+                var logFont = new Native.Structs.LOGFONT
+                {
+                    lfHeight = -(int)(ctl.FontSize * dpiScale),
+                    lfWeight = ctl.FontWeight == FontWeight.Bold ? 700 : 400,
+                    lfCharSet = 1, // DEFAULT_CHARSET
+                };
+                logFont.SetFaceName(ctl.FontFamily ?? "");
+                Imm32.ImmSetCompositionFont(himc, ref logFont);
+            }
         }
         finally
         {

@@ -12,6 +12,8 @@ public abstract class MeasureGraphicsContextBase : IGraphicsContext
 {
     public abstract double DpiScale { get; }
 
+    public bool EnableAlphaTextHint { get; set; }
+
     public virtual ImageScaleQuality ImageScaleQuality { get; set; } = ImageScaleQuality.Default;
 
     public abstract Size MeasureText(ReadOnlySpan<char> text, IFont font);

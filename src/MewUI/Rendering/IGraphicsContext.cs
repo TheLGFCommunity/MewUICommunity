@@ -13,6 +13,12 @@ namespace Aprillz.MewUI.Rendering
         /// </summary>
         double DpiScale { get; }
 
+        /// <summary>
+        /// Hints the context that text rendering should produce correct alpha channel values.
+        /// Backends that always produce correct alpha (e.g. Direct2D) may ignore this hint.
+        /// </summary>
+        bool EnableAlphaTextHint { get; set; }
+
         #region State Management
 
         /// <summary>

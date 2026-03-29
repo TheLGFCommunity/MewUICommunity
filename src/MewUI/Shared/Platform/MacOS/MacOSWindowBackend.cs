@@ -184,6 +184,12 @@ internal sealed class MacOSWindowBackend : IWindowBackend
             MacOSWindowInterop.HideDialogChromeButtons(_nsWindow);
             MacOSWindowInterop.HideCloseButton(_nsWindow);
         }
+        else if (_extendTitleBarHeight > 0)
+        {
+            const ulong ExtendedStyleMask = 1ul | 2ul | 4ul | 8ul | (1ul << 15);
+            MacOSWindowInterop.SetWindowStyleMask(_nsWindow, ExtendedStyleMask);
+            MacOSWindowInterop.SetTitlebarForTransparency(_nsWindow, true);
+        }
         ApplyResolvedStartupPlacement();
         UpdateClientSizeIfNeeded(forceLayout: true);
         ApplyResolvedStartupPlacement();
@@ -280,9 +286,9 @@ internal sealed class MacOSWindowBackend : IWindowBackend
                 ObjC.MsgSend_void_nint_nint(_nsWindow, ObjC.Sel("miniaturize:"), 0);
                 break;
             case Controls.WindowState.Maximized:
-                if (_allowsTransparency)
+                if (_allowsTransparency || _extendTitleBarHeight > 0)
                 {
-                    // Borderless window: manual maximize using screen visibleFrame
+                    // Manual maximize using screen visibleFrame
                     _restoreFrame = ObjC.MsgSend_rect(_nsWindow, ObjC.Sel("frame"));
                     var screen = ObjC.MsgSend_nint(_nsWindow, ObjC.Sel("screen"));
                     if (screen != 0)
@@ -303,7 +309,7 @@ internal sealed class MacOSWindowBackend : IWindowBackend
                     ObjC.MsgSend_void_nint_nint(_nsWindow, ObjC.Sel("makeKeyAndOrderFront:"), 0);
                     _window.Invalidate();
                 }
-                else if (_allowsTransparency)
+                else if (_allowsTransparency || _extendTitleBarHeight > 0)
                 {
                     // Restore from manual maximize
                     if (_restoreFrame.size.width > 0 && _restoreFrame.size.height > 0)
@@ -555,6 +561,65 @@ internal sealed class MacOSWindowBackend : IWindowBackend
         }
     }
 
+    internal double _extendTitleBarHeight;
+
+    public void SetExtendClientAreaToTitleBar(double titleBarHeight)
+    {
+        _extendTitleBarHeight = titleBarHeight;
+        if (_nsWindow == 0) return;
+
+        // Do not change styleMask during fullscreen transitions — macOS will throw.
+        var currentMask = MacOSWindowInterop.GetWindowStyleMask(_nsWindow);
+        const ulong NSWindowStyleMaskFullScreen = 1ul << 14;
+        if ((currentMask & NSWindowStyleMaskFullScreen) != 0) return;
+
+        if (titleBarHeight > 0)
+        {
+            const ulong ExtendedStyleMask = 1ul | 2ul | 4ul | 8ul | (1ul << 15);
+            MacOSWindowInterop.SetWindowStyleMask(_nsWindow, ExtendedStyleMask);
+            MacOSWindowInterop.SetTitlebarForTransparency(_nsWindow, true);
+        }
+        else
+        {
+            MacOSWindowInterop.SetWindowStyleMask(_nsWindow, _defaultStyleMask);
+            MacOSWindowInterop.SetTitlebarForTransparency(_nsWindow, false);
+        }
+
+        Invalidate(erase: false);
+    }
+
+    public void SetWindowBorderColor(Color? color)
+    {
+        // macOS doesn't have a direct API for window border color.
+        // The window frame color is determined by the system appearance.
+    }
+
+    public Controls.WindowChromeCapabilities ChromeCapabilities =>
+        Controls.WindowChromeCapabilities.ExtendClientArea
+        | Controls.WindowChromeCapabilities.NativeChromeButtons
+        | Controls.WindowChromeCapabilities.NativeWindowBorder;
+
+    public Thickness NativeChromeButtonInset
+    {
+        get
+        {
+            if (_extendTitleBarHeight <= 0 || _nsWindow == 0) return default;
+
+            // In fullscreen, traffic light buttons are auto-hidden — no inset needed.
+            var mask = MacOSWindowInterop.GetWindowStyleMask(_nsWindow);
+            const ulong NSWindowStyleMaskFullScreen = 1ul << 14;
+            if ((mask & NSWindowStyleMaskFullScreen) != 0) return default;
+
+            // Read the frame of the zoom button (index 2, rightmost traffic light).
+            var zoomBtn = ObjC.MsgSend_nint_ulong(_nsWindow, ObjC.Sel("standardWindowButton:"), 2);
+            if (zoomBtn == 0) return new Thickness(70, 0, 0, 0); // fallback
+
+            var frame = ObjC.MsgSend_rect(zoomBtn, ObjC.Sel("frame"));
+            double rightEdge = frame.origin.x + frame.size.width + 8;
+            return new Thickness(rightEdge, 0, 0, 0);
+        }
+    }
+
     public void SetCursor(CursorType cursorType)
     {
         MacOSWindowInterop.SetCursor(cursorType);
@@ -728,6 +793,14 @@ internal sealed class MacOSWindowBackend : IWindowBackend
                 MacOSWindowInterop.SetOpenGLSurfaceOpacity(_nsContext, !_allowsTransparency);
             }
             MacOSWindowInterop.RegisterWindowCloseTarget(_nsWindow, this);
+
+            // Apply extended client area if set before window creation.
+            if (_extendTitleBarHeight > 0)
+            {
+                const ulong ExtendedStyleMask = 1ul | 2ul | 4ul | 8ul | (1ul << 15);
+                MacOSWindowInterop.SetWindowStyleMask(_nsWindow, ExtendedStyleMask);
+                MacOSWindowInterop.SetTitlebarForTransparency(_nsWindow, true);
+            }
         }
     }
 
@@ -897,7 +970,34 @@ internal sealed class MacOSWindowBackend : IWindowBackend
         {
             _window.Invalidate();
         }
+
+        // Detect zoom state changes (e.g. green traffic light button) and sync with MewUI WindowState.
+        SyncZoomState();
+
         return true;
+    }
+
+    private void SyncZoomState()
+    {
+        if (_nsWindow == 0) return;
+
+        // Skip during fullscreen transitions.
+        var mask = MacOSWindowInterop.GetWindowStyleMask(_nsWindow);
+        const ulong NSWindowStyleMaskFullScreen = 1ul << 14;
+        if ((mask & NSWindowStyleMaskFullScreen) != 0) return;
+
+        bool zoomed = IsZoomed();
+        var currentState = _window.WindowState;
+
+        if (zoomed && currentState != Controls.WindowState.Maximized)
+        {
+            _window.SetWindowStateFromBackend(Controls.WindowState.Maximized);
+        }
+        else if (!zoomed && currentState == Controls.WindowState.Maximized
+                 && !ObjC.MsgSend_bool(_nsWindow, ObjC.Sel("isMiniaturized")))
+        {
+            _window.SetWindowStateFromBackend(Controls.WindowState.Normal);
+        }
     }
 
     internal void ProcessNSEvent(nint ev)
@@ -3478,6 +3578,50 @@ internal static unsafe class MacOSWindowInterop
     }
 
     [UnmanagedCallersOnly]
+    private static void MewUIWindowDelegate_windowDidEnterFullScreen(nint self, nint sel, nint notification)
+    {
+        try
+        {
+            if (notification == 0) return;
+            nint window = GetWindowFromNotification(notification);
+            if (window != 0 && TryGetWindowCloseTarget(window, out var backend))
+            {
+                backend.Window.SetWindowStateFromBackend(Controls.WindowState.Maximized);
+                // Re-apply extended client area after fullscreen transition completes.
+                if (backend._extendTitleBarHeight > 0)
+                {
+                    const ulong ExtendedStyleMask = 1ul | 2ul | 4ul | 8ul | (1ul << 14) | (1ul << 15);
+                    MacOSWindowInterop.SetWindowStyleMask(window, ExtendedStyleMask);
+                    MacOSWindowInterop.SetTitlebarForTransparency(window, true);
+                }
+            }
+        }
+        catch { }
+    }
+
+    [UnmanagedCallersOnly]
+    private static void MewUIWindowDelegate_windowDidExitFullScreen(nint self, nint sel, nint notification)
+    {
+        try
+        {
+            if (notification == 0) return;
+            nint window = GetWindowFromNotification(notification);
+            if (window != 0 && TryGetWindowCloseTarget(window, out var backend))
+            {
+                backend.Window.SetWindowStateFromBackend(Controls.WindowState.Normal);
+                // Re-apply extended client area after fullscreen transition completes.
+                if (backend._extendTitleBarHeight > 0)
+                {
+                    const ulong ExtendedStyleMask = 1ul | 2ul | 4ul | 8ul | (1ul << 15);
+                    MacOSWindowInterop.SetWindowStyleMask(window, ExtendedStyleMask);
+                    MacOSWindowInterop.SetTitlebarForTransparency(window, true);
+                }
+            }
+        }
+        catch { }
+    }
+
+    [UnmanagedCallersOnly]
     private static void MewUIWindowDelegate_windowDidResignKey(nint self, nint sel, nint notification)
     {
         try
@@ -3577,6 +3721,12 @@ internal static unsafe class MacOSWindowInterop
 
                 var deminiaturizeImp = (nint)(delegate* unmanaged<nint, nint, nint, void>)&MewUIWindowDelegate_windowDidDeminiaturize;
                 _ = ObjC.AddMethod(cls, ObjC.Sel("windowDidDeminiaturize:"), deminiaturizeImp, "v@:@");
+
+                var enterFullScreenImp = (nint)(delegate* unmanaged<nint, nint, nint, void>)&MewUIWindowDelegate_windowDidEnterFullScreen;
+                _ = ObjC.AddMethod(cls, ObjC.Sel("windowDidEnterFullScreen:"), enterFullScreenImp, "v@:@");
+
+                var exitFullScreenImp = (nint)(delegate* unmanaged<nint, nint, nint, void>)&MewUIWindowDelegate_windowDidExitFullScreen;
+                _ = ObjC.AddMethod(cls, ObjC.Sel("windowDidExitFullScreen:"), exitFullScreenImp, "v@:@");
 
                 ObjC.RegisterClassPair(cls);
             }
