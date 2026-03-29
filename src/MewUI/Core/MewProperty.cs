@@ -165,8 +165,8 @@ public sealed class MewProperty<T> : MewProperty
     /// <param name="name">Property name.</param>
     /// <param name="defaultValue">Default value when not set by style or local override.</param>
     /// <param name="options">Metadata flags.</param>
-    /// <param name="changed">Callback invoked when the property value changes.
-    /// Receives the owner instance, old value, and new value.</param>
+    /// <param name="changed">Callback invoked when the property value changes.</param>
+    /// <param name="coerce">Callback invoked to coerce the property value.</param>
     public static MewProperty<T> Register<TOwner>(
         string name,
         T defaultValue,
