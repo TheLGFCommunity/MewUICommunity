@@ -972,7 +972,7 @@ internal sealed class GdiPlusGraphicsContext : GraphicsContextBase
             return;
         }
 
-        if (_bitmapTarget != null || color.A < 255)
+        if (_bitmapTarget != null || color.A < 255 || EnableAlphaTextHint)
         {
             var r = GetTextLayoutRect(bounds, wrapping);
             uint format = BuildTextFormat(horizontalAlignment, verticalAlignment, wrapping, trimming);

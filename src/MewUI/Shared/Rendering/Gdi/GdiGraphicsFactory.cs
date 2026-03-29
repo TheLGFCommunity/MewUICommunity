@@ -1,3 +1,5 @@
+using System.Runtime.Intrinsics;
+
 using Aprillz.MewUI.Native;
 using Aprillz.MewUI.Native.Structs;
 using Aprillz.MewUI.Platform;
@@ -285,39 +287,63 @@ public sealed class GdiGraphicsFactory : IGraphicsFactory, IWindowResourceReleas
         }
     }
 
-    private static void CopyWithAlphaFix(ReadOnlySpan<byte> srcBgra, Span<byte> dstBgra)
+    private static unsafe void CopyWithAlphaFix(ReadOnlySpan<byte> srcBgra, Span<byte> dstBgra)
     {
-        if (srcBgra.Length == 0 || dstBgra.Length == 0)
-        {
-            return;
-        }
-
         int byteCount = Math.Min(srcBgra.Length, dstBgra.Length);
-        if (byteCount <= 0)
-        {
-            return;
-        }
-
-        var src = srcBgra.Slice(0, byteCount);
-        var dst = dstBgra.Slice(0, byteCount);
+        if (byteCount <= 0) return;
 
         // GDI text/bitblt paths often leave A=0; infer opaque pixels from RGB.
-        for (int i = 0; i + 3 < byteCount; i += 4)
-        {
-            byte b = src[i + 0];
-            byte g = src[i + 1];
-            byte r = src[i + 2];
-            byte a = src[i + 3];
+        // Per pixel (BGRA little-endian = 0xAARRGGBB in uint):
+        //   if (alpha == 0 && rgb != 0) alpha = 0xFF
 
-            if (a == 0 && (b | g | r) != 0)
+        fixed (byte* srcPtr = srcBgra, dstPtr = dstBgra)
+        {
+            int pixelCount = byteCount / 4;
+            int i = 0;
+
+            if (System.Runtime.Intrinsics.X86.Sse2.IsSupported)
             {
-                a = 255;
+                // 4 pixels per iteration (16 bytes).
+                // alphaMask isolates A byte per pixel: 0x FF000000 repeated.
+                var alphaMask = System.Runtime.Intrinsics.Vector128.Create(0xFF000000u).AsByte();
+                var zero = System.Runtime.Intrinsics.Vector128<byte>.Zero;
+
+                int simdCount = pixelCount & ~3; // round down to multiple of 4
+                for (; i < simdCount; i += 4)
+                {
+                    var v = System.Runtime.Intrinsics.X86.Sse2.LoadVector128(srcPtr + i * 4);
+
+                    // alphaBytes: A channels only (others zeroed)
+                    var alphaBytes = System.Runtime.Intrinsics.X86.Sse2.And(v, alphaMask);
+                    // alphaZero: 0xFFFFFFFF per pixel where A==0
+                    var alphaZero = System.Runtime.Intrinsics.X86.Sse2.CompareEqual(alphaBytes.AsInt32(), zero.AsInt32()).AsByte();
+
+                    // rgbBytes: RGB channels only (A zeroed)
+                    var rgbBytes = System.Runtime.Intrinsics.X86.Sse2.AndNot(alphaMask, v);
+                    // rgbNonZero: 0xFFFFFFFF per pixel where any RGB byte != 0
+                    // CompareEqual gives 0xFFFFFFFF where all bytes are 0 => invert
+                    var rgbAllZero = System.Runtime.Intrinsics.X86.Sse2.CompareEqual(rgbBytes.AsInt32(), zero.AsInt32()).AsByte();
+                    var rgbHasColor = System.Runtime.Intrinsics.X86.Sse2.Xor(rgbAllZero,
+                        System.Runtime.Intrinsics.Vector128.Create((byte)0xFF));
+
+                    // needsFix: pixels where A==0 AND RGB!=0
+                    var needsFix = System.Runtime.Intrinsics.X86.Sse2.And(alphaZero, rgbHasColor);
+                    // OR 0xFF into the alpha byte position for those pixels
+                    var fix = System.Runtime.Intrinsics.X86.Sse2.And(needsFix, alphaMask);
+                    var result = System.Runtime.Intrinsics.X86.Sse2.Or(v, fix);
+
+                    System.Runtime.Intrinsics.X86.Sse2.Store(dstPtr + i * 4, result);
+                }
             }
 
-            dst[i + 0] = b;
-            dst[i + 1] = g;
-            dst[i + 2] = r;
-            dst[i + 3] = a;
+            // Scalar remainder
+            for (; i < pixelCount; i++)
+            {
+                uint pixel = ((uint*)srcPtr)[i];
+                if ((pixel & 0xFF000000) == 0 && (pixel & 0x00FFFFFF) != 0)
+                    pixel |= 0xFF000000;
+                ((uint*)dstPtr)[i] = pixel;
+            }
         }
     }
 
