@@ -31,13 +31,16 @@
 ---
 
 ## 🚀 Try It Out
-
-You can run it immediately by entering the following command in the Windows command line or a Linux terminal. (.NET 10 SDK required)
-> [!WARNING]
-> This command downloads and executes code directly from GitHub.
+**No clone. No download. No project setup.**  
+You can **run MewUI immediately** with a single command on **Windows**, **Linux** or **macOS**.  (.NET 10 SDK required)
+> [!TIP]
+> This is the **quickest way to try MewUI** without going through the usual repository and project setup steps.
 ```bash
 curl -sL https://raw.githubusercontent.com/aprillz/MewUI/refs/heads/main/samples/FBASample/fba_gallery.cs -o - | dotnet run -
 ```
+
+> [!WARNING]
+> This command downloads and executes code directly from GitHub.
 
 ### Video
 https://github.com/user-attachments/assets/fc2d6ad8-3317-4784-a6e5-a00c68e9ed3b
