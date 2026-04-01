@@ -19,6 +19,8 @@ using (var rs = typeof(Program).Assembly.GetManifestResourceStream("Aprillz.MewU
 Window window = null!;
 TextBlock backendText = null!;
 TextBlock themeText = null!;
+ObservableValue<ThemeVariant> themeMode = new(ThemeVariant.System);
+
 var fpsText = new ObservableValue<string>("FPS: -");
 var cullText = new ObservableValue<string>("Cull: -");
 var fpsStopwatch = new Stopwatch();
@@ -55,7 +57,9 @@ Application
             .OnLoaded(() =>
             {
                 window.Icon = icon;
-                UpdateTopBar(); timer.Start();
+                Application.Current.ThemeModeChanged += () => themeMode.Value = Application.Current.ThemeMode;
+                UpdateTopBar(); 
+                timer.Start();
             })
             .OnClosed(() => maxFpsEnabled.Value = false)
             .OnFirstFrameRendered(() => stopwatch.Stop())
@@ -171,16 +175,19 @@ FrameworkElement ThemeModePicker() => new StackPanel()
             .Content("System")
             .CenterVertical()
             .IsChecked()
+            .BindIsChecked(themeMode, mode => mode == ThemeVariant.System)
             .OnChecked(() => Application.Current.SetTheme(ThemeVariant.System)),
 
         new RadioButton()
             .Content("Light")
             .CenterVertical()
+            .BindIsChecked(themeMode, mode => mode == ThemeVariant.Light)
             .OnChecked(() => Application.Current.SetTheme(ThemeVariant.Light)),
 
         new RadioButton()
             .Content("Dark")
             .CenterVertical()
+            .BindIsChecked(themeMode, mode => mode == ThemeVariant.Dark)
             .OnChecked(() => Application.Current.SetTheme(ThemeVariant.Dark))
     );
 

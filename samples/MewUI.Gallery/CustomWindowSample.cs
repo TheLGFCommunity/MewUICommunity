@@ -23,10 +23,13 @@ internal class CustomWindowSample : CustomWindow
 	        C9.878,11.2,9.158,9.454,9.158,7.404c0-0.333,0.025-0.667,0.075-1c0.05-0.333,0.117-0.667,0.2-1c-1.3,0.533-2.354,1.383-3.163,2.55
 	        c-0.808,1.167-1.212,2.483-1.212,3.95c0,1.934,0.684,3.583,2.05,4.95C8.475,18.221,10.125,18.904,12.058,18.904z");
 
+    private ObservableValue<string> _stateText = new();
+    private ObservableValue<string> _capText = new();
+
     public CustomWindowSample()
     {
         this.OnBuild(OnBuild)
-            .Resizable(600, 400, minWidth: 400, minHeight: 250)
+            .Resizable(624, 436, minWidth: 400, minHeight: 250)
             .OnActivated(UpdateStateLabel)
             .OnDeactivated(UpdateStateLabel)
             .OnWindowStateChanged(_ => UpdateStateLabel())
@@ -34,10 +37,8 @@ internal class CustomWindowSample : CustomWindow
             .StartCenterOwner();
     }
 
-    private ObservableValue<string> stateText = new();
-
     private void UpdateStateLabel() =>
-        stateText.Value = $"WindowState: {WindowState} | IsActive: {IsActive} | Size: {ClientSize.Width:0}x{ClientSize.Height:0}";
+        _stateText.Value = $"WindowState: {WindowState} | IsActive: {IsActive} | Size: {ClientSize.Width:0}x{ClientSize.Height:0}";
 
     private void OnBuild(CustomWindowSample window)
     {
@@ -47,6 +48,7 @@ internal class CustomWindowSample : CustomWindow
                 .Apply(x => x.DrawBottomSeparator = false)
                 .Background(Color.Transparent));
 
+        // Title bar right: Theme toggle
         var themeIcon = new PathShape()
             .Center()
             .Size(12)
@@ -56,18 +58,16 @@ internal class CustomWindowSample : CustomWindow
         var themeBtn = new Button()
             .Content(themeIcon)
             .CornerRadius(0)
-            .StyleName(BuiltInStyles.FlatButton)
+            .StyleName("chrome")
             .MinWidth(36)
-            .MinHeight(28);
+            .MinHeight(32);
 
         themeBtn.OnClick(() =>
         {
             var isDark = Application.Current.Theme.IsDark;
             Application.Current.SetTheme(isDark ? ThemeVariant.Light : ThemeVariant.Dark);
-            themeIcon.Data = isDark ? _darkIcon : _lightIcon;
         });
 
-        // Title bar right: Theme toggle with PathShape icons
         TitleBarRight.Add(themeBtn);
 
         window
@@ -81,7 +81,6 @@ internal class CustomWindowSample : CustomWindow
                             .Text("Custom chrome with DragMove, Minimize, Maximize, shadow, MenuBar in title bar.")
                             .TextWrapping(TextWrapping.Wrap),
 
-                        // Window property controls
                         new Border()
                             .Padding(8)
                             .CornerRadius(4)
@@ -90,11 +89,11 @@ internal class CustomWindowSample : CustomWindow
                                 .Spacing(6)
                                 .Children(
                                     new TextBlock().Text("Window Properties").Bold(),
-                                    BoolPropertyCheckBox(this, "CanMinimize", Window.CanMinimizeProperty),
-                                    BoolPropertyCheckBox(this, "CanMaximize", Window.CanMaximizeProperty),
-                                    BoolPropertyCheckBox(this, "CanClose", Window.CanCloseProperty),
-                                    BoolPropertyCheckBox(this, "Topmost", Window.TopmostProperty),
-                                    BoolPropertyCheckBox(this, "ShowInTaskbar", Window.ShowInTaskbarProperty),
+                                    BoolCheckBox(this, "CanMinimize", Window.CanMinimizeProperty),
+                                    BoolCheckBox(this, "CanMaximize", Window.CanMaximizeProperty),
+                                    BoolCheckBox(this, "CanClose", Window.CanCloseProperty),
+                                    BoolCheckBox(this, "Topmost", Window.TopmostProperty),
+                                    BoolCheckBox(this, "ShowInTaskbar", Window.ShowInTaskbarProperty),
                                     new StackPanel()
                                         .Horizontal()
                                         .Spacing(6)
@@ -109,7 +108,8 @@ internal class CustomWindowSample : CustomWindow
                                                 .OnClick(() => Restore())
                                                 .OnCanClick(() => WindowState != WindowState.Normal)
                                         ),
-                                    new TextBlock().BindText(stateText)
+                                    new TextBlock().BindText(_stateText),
+                                    new TextBlock().BindText(_capText)
                                 )),
 
                         new TextBox(),
@@ -118,20 +118,16 @@ internal class CustomWindowSample : CustomWindow
                             .Horizontal()
                             .Spacing(8)
                             .Children(
-                                new Button()
-                                    .Content("OK"),
-                                new Button()
-                                    .Content("Close")
-                                    .OnClick(() => Close())
+                                new Button().Content("OK"),
+                                new Button().Content("Close").OnClick(() => Close())
                             )
                     )
                 )
-            );
+            ).OnLoaded(() => _capText.Value = $"ChromeCapabilities: {window.ChromeCapabilities}");
     }
 
-    private static CheckBox BoolPropertyCheckBox(Window target, string label, MewProperty<bool> property)
+    private static CheckBox BoolCheckBox(Window target, string label, MewProperty<bool> property)
     {
-        // Use reflection-free getter/setter via known property names
         bool initial = property == Window.CanMinimizeProperty ? target.CanMinimize
             : property == Window.CanMaximizeProperty ? target.CanMaximize
             : property == Window.CanCloseProperty ? target.CanClose
@@ -142,14 +138,15 @@ internal class CustomWindowSample : CustomWindow
         return new CheckBox()
             .Left()
             .IsChecked(initial)
-            .Content(label).OnCheckedChanged(v =>
-             {
-                 bool val = v == true;
-                 if (property == Window.CanMinimizeProperty) target.CanMinimize = val;
-                 else if (property == Window.CanMaximizeProperty) target.CanMaximize = val;
-                 else if (property == Window.CanCloseProperty) target.CanClose = val;
-                 else if (property == Window.TopmostProperty) target.Topmost = val;
-                 else if (property == Window.ShowInTaskbarProperty) target.ShowInTaskbar = val;
-             });
+            .Content(label)
+            .OnCheckedChanged(v =>
+            {
+                bool val = v == true;
+                if (property == Window.CanMinimizeProperty) target.CanMinimize = val;
+                else if (property == Window.CanMaximizeProperty) target.CanMaximize = val;
+                else if (property == Window.CanCloseProperty) target.CanClose = val;
+                else if (property == Window.TopmostProperty) target.Topmost = val;
+                else if (property == Window.ShowInTaskbarProperty) target.ShowInTaskbar = val;
+            });
     }
 }

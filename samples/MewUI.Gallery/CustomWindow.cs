@@ -16,23 +16,16 @@ public class CustomWindow : Window
 {
     private const double TitleBarHeight = 28;
     private const double ButtonWidth = 32;
-    private const double ChromeCornerRadius = 8;
     private const double ChromeButtonSize = 4;
+    private const double ChromeCornerRadius = 8;
     private const double ShadowExtent = 12;
-    private const double ShadowOffset = 2;
-
-    public static readonly MewProperty<Color> TitleBarColorProperty =
-        MewProperty<Color>.Register<CustomWindow>("TitleBarColor", Color.Transparent, MewPropertyOptions.AffectsRender);
-
-    public static readonly MewProperty<Color> ChromeBorderColorProperty =
-        MewProperty<Color>.Register<CustomWindow>("ChromeBorderColor", Color.Transparent, MewPropertyOptions.AffectsRender);
-
-    public static readonly MewProperty<Color> TitleForegroundProperty =
-        MewProperty<Color>.Register<CustomWindow>("TitleForeground", Color.Transparent, MewPropertyOptions.AffectsRender);
-
-    private readonly Border _chrome;
+    private const double ShadowOffset = 2; 
     private readonly ShadowDecorator _shadow;
     private readonly Border _contentArea;
+    private readonly Border _chromeBorder;
+    private readonly Border _titleBar;
+    private readonly TextBlock _titleText;
+    private readonly StackPanel _controlButtons;
     private readonly StackPanel _leftArea;
     private readonly StackPanel _rightArea;
     private readonly Button _minimizeBtn;
@@ -94,35 +87,28 @@ public class CustomWindow : Window
         ],
     };
 
-
-    public static MewProperty<HorizontalAlignment> TitleHorizontalAlignmentProperty = MewProperty<HorizontalAlignment>
-        .Register<CustomWindow>(nameof(TitleHorizontalAlignment), HorizontalAlignment.Center, MewPropertyOptions.AffectsRender);
-
-    public HorizontalAlignment TitleHorizontalAlignment
-    {
-        get => GetValue(TitleHorizontalAlignmentProperty);
-        set => SetValue(TitleHorizontalAlignmentProperty, value);
-    }
     public CustomWindow()
     {
         AllowsTransparency = true;
         base.Background = Color.Transparent;
-
         base.Padding = new Thickness(0);
 
         StyleSheet = new StyleSheet();
         StyleSheet.Define("chrome", ChromeButtonStyle);
         StyleSheet.Define("close", CloseButtonStyle);
 
-        // Title text — bound directly to Window.TitleProperty
+        // Title text
         var titleText = new TextBlock
         {
+            IsHitTestVisible = false,
             FontWeight = FontWeight.SemiBold,
-            Margin = new Thickness(8, 0, 0, 0),
+            FontSize = 13,
+            Margin = new Thickness(8, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
         };
-        titleText.SetBinding(TextBlock.HorizontalAlignmentProperty, this, TitleHorizontalAlignmentProperty);
         titleText.SetBinding(TextBlock.TextProperty, this, TitleProperty);
-        titleText.SetBinding(Control.ForegroundProperty, this, TitleForegroundProperty);
+        _titleText = titleText;
 
         // Chrome buttons
         _minimizeBtn = CreateChromeButton(GlyphKind.WindowMinimize);
@@ -144,31 +130,30 @@ public class CustomWindow : Window
         closeBtn.Click += () => Close();
         closeBtn.SetBinding(UIElement.IsVisibleProperty, this, CanCloseProperty);
 
-        var controlButtons = new StackPanel { Orientation = Orientation.Horizontal };
-        controlButtons.Add(_minimizeBtn);
-        controlButtons.Add(_maximizeBtn);
-        controlButtons.Add(closeBtn);
+        _controlButtons = new StackPanel { Orientation = Orientation.Horizontal };
+        _controlButtons.Add(_minimizeBtn);
+        _controlButtons.Add(_maximizeBtn);
+        _controlButtons.Add(closeBtn);
 
         // Title bar areas
         _leftArea = new StackPanel { Orientation = Orientation.Horizontal };
         _rightArea = new StackPanel { Orientation = Orientation.Horizontal };
 
         // Title bar
-        var titleBar = new Border
+        _titleBar = new Border
         {
             Padding = new Thickness(0),
             MinHeight = TitleBarHeight,
         };
-        titleBar.SetBinding(Control.BackgroundProperty, this, TitleBarColorProperty);
-        titleBar.Child = new DockPanel().Children(
-            new Border().DockRight().Child(controlButtons),
+        _titleBar.Child = new DockPanel().Children(
+            new Border().DockRight().Child(_controlButtons),
             new Border().DockRight().Child(_rightArea),
             new Border().DockLeft().Child(_leftArea),
             titleText
         );
 
         // DragMove on title bar
-        titleBar.MouseDown += e =>
+        _titleBar.MouseDown += e =>
         {
             if (e.Button == MouseButton.Left)
             {
@@ -176,11 +161,19 @@ public class CustomWindow : Window
                 e.Handled = true;
             }
         };
+        _titleBar.SetBinding(BackgroundProperty, this, BackgroundProperty);
 
-        titleBar.MouseDoubleClick += e =>
+        // Title bar: double-click to maximize/restore
+        _titleBar.MouseDoubleClick += e =>
         {
             if (e.Button == MouseButton.Left && CanMaximize)
             {
+                if (e.GetPosition(this) is Point p && (_leftArea.Bounds.Contains(p) || _rightArea.Bounds.Contains(p)))
+                {
+                    e.Handled = true;
+                    return;
+                }
+
                 if (WindowState == WindowState.Maximized)
                 {
                     Restore();
@@ -191,32 +184,37 @@ public class CustomWindow : Window
                 }
                 e.Handled = true;
             }
-
         };
 
         // Content area
         _contentArea = new Border { Padding = new Thickness(16) };
 
-        // Chrome border
-        _chrome = new Border
+        _chromeBorder = new Border
         {
             CornerRadius = ChromeCornerRadius,
             BorderThickness = 1,
             ClipToBounds = true,
+            Child = new DockPanel().Children(
+                _titleBar.DockTop(),
+                _contentArea
+			)
         };
-        _chrome.SetBinding(Control.BorderBrushProperty, this, ChromeBorderColorProperty);
-        _chrome.Child = new DockPanel().Children(
-            new Border().DockTop().Child(titleBar),
-            _contentArea
-        );
-        _chrome.WithTheme((t, b) => b.Background = t.Palette.WindowBackground);
+        _chromeBorder.WithTheme((t, b) => b.Background = t.Palette.WindowBackground);
+        _chromeBorder.SetBinding(Border.BorderBrushProperty, this, BorderBrushProperty);
+
+        // WindowState -> glyph + chrome update
+        WindowStateChanged += _ =>
+        {
+            OnWindowStateVisualUpdate();
+            UpdateChromeButtonVisibility();
+        };
 
         _shadow = new ShadowDecorator
         {
             BlurRadius = ShadowExtent,
             OffsetY = ShadowOffset,
             CornerRadius = ChromeCornerRadius,
-            Child = _chrome,
+            Child = _chromeBorder,
         };
         _shadow.WithTheme((t, s) =>
             s.ShadowColor = Color.FromArgb((byte)(t.IsDark ? 100 : 48), 0, 0, 0));
@@ -224,20 +222,10 @@ public class CustomWindow : Window
         base.Content = _shadow;
 
         // React to IsActive, WindowState, and Theme changes
-        Activated += UpdateChromeColors;
-        Deactivated += UpdateChromeColors;
-        this.WithTheme((_, _) => UpdateChromeColors());
+        Activated += UpdateChromeAppearance;
+        Deactivated += UpdateChromeAppearance;
+        this.WithTheme((_, _) => UpdateChromeAppearance());
 
-        // WindowState → glyph + corner radius
-        ClientSizeChanged += _ => OnWindowStateVisualUpdate();
-
-        // Resize grip: detect mouse in shadow area (outside chrome border)
-    }
-
-
-    private void TitleBar_MouseDoubleClick(MouseEventArgs obj)
-    {
-        throw new NotImplementedException();
     }
 
     /// <summary>Left area of the title bar (e.g. MenuBar).</summary>
@@ -258,13 +246,29 @@ public class CustomWindow : Window
         set => _contentArea.Padding = value;
     }
 
-
-    private void UpdateChromeColors()
+    private void UpdateChromeAppearance()
     {
         var p = Theme.Palette;
-        SetValue(TitleBarColorProperty, p.WindowBackground.Lerp(p.ControlBackground, 0.5));
-        SetValue(ChromeBorderColorProperty, IsActive ? p.Accent.Lerp(p.ControlBackground, 0.25) : p.ControlBorder);
-        SetValue(TitleForegroundProperty, IsActive ? p.WindowText : p.DisabledText);
+        var accentBorder = IsActive ? p.Accent : p.ControlBorder;
+
+        BorderBrush = accentBorder;
+
+        _titleText.Foreground = IsActive ? p.WindowText : p.DisabledText;
+    }
+
+    protected override void OnThemeChanged(Theme oldTheme, Theme newTheme)
+    {
+        base.OnThemeChanged(oldTheme, newTheme);
+
+        UpdateChromeAppearance();
+    }
+
+    private void UpdateChromeButtonVisibility()
+    {
+        bool hasExtend = ChromeCapabilities.HasFlag(WindowChromeCapabilities.ExtendClientArea);
+        _titleBar.IsVisible = hasExtend;
+        _controlButtons.IsVisible = !HasNativeChromeButtons;
+        _titleBar.Padding = NativeChromeButtonInset;
     }
 
     private void OnWindowStateVisualUpdate()
@@ -273,9 +277,10 @@ public class CustomWindow : Window
         if (_maximizeBtn.Content is GlyphElement glyph)
             glyph.Kind = maximized ? GlyphKind.WindowRestore : GlyphKind.WindowMaximize;
 
-        _chrome.CornerRadius = maximized ? 0 : ChromeCornerRadius;
-        _chrome.BorderThickness = maximized ? 0 : 1;
+        _chromeBorder.CornerRadius = maximized ? 0 : ChromeCornerRadius;
+        _chromeBorder.BorderThickness = maximized ? 0 : 1;
         _shadow.BlurRadius = maximized ? 0 : ShadowExtent;
+        _shadow.OffsetY = maximized ? 0 : ShadowOffset;
         _shadow.CornerRadius = maximized ? 0 : ChromeCornerRadius;
     }
 

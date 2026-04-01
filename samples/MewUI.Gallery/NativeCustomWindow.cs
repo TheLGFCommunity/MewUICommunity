@@ -10,8 +10,30 @@ namespace Aprillz.MewUI.Gallery;
 public class NativeCustomWindow : Window
 {
     private const double DefaultTitleBarHeight = 28;
-    private const double ButtonWidth = 46;
+    private const double ButtonWidth = 32;
     private const double ChromeButtonSize = 4;
+
+    private readonly Border _contentArea;
+    private readonly Border _chromeBorder;
+    private readonly AlphaTextPanel _titleBar;
+    private readonly TextBlock _titleText;
+    private readonly StackPanel _controlButtons;
+    private readonly StackPanel _leftArea;
+    private readonly StackPanel _rightArea;
+    private readonly Button _minimizeBtn;
+    private readonly Button _maximizeBtn;
+
+    protected override void OnMewPropertyChanged(MewProperty property)
+    {
+        base.OnMewPropertyChanged(property);
+
+        if (ChromeCapabilities.HasFlag(WindowChromeCapabilities.NativeBorderColor)
+            && property.Name == nameof(BorderBrush))
+        {
+            SetWindowBorderColor(BorderBrush);
+        }
+    }
+
 
     private static readonly Style ChromeButtonStyle = new(typeof(Button))
     {
@@ -69,27 +91,6 @@ public class NativeCustomWindow : Window
         ],
     };
 
-    private readonly Border _contentArea;
-    private readonly Border _chromeBorder;
-    private readonly AlphaTextPanel _titleBar;
-    private readonly TextBlock _titleText;
-    private readonly StackPanel _controlButtons;
-    private readonly StackPanel _leftArea;
-    private readonly StackPanel _rightArea;
-    private readonly Button _minimizeBtn;
-    private readonly Button _maximizeBtn;
-
-    protected override void OnMewPropertyChanged(MewProperty property)
-    {
-        base.OnMewPropertyChanged(property);
-
-        if (ChromeCapabilities.HasFlag(WindowChromeCapabilities.NativeBorderColor)
-            && property.Name == nameof(BorderBrush))
-        {
-            SetWindowBorderColor(BorderBrush);
-        }
-    }
-
     public NativeCustomWindow()
     {
         ExtendClientAreaTitleBarHeight = DefaultTitleBarHeight;
@@ -137,9 +138,6 @@ public class NativeCustomWindow : Window
         _controlButtons.Add(_maximizeBtn);
         _controlButtons.Add(closeBtn);
 
-        // Hide custom chrome buttons on platforms with native ones (e.g. macOS traffic lights).
-        Activated += UpdateChromeButtonVisibility;
-
         // Title bar areas
         _leftArea = new StackPanel { Orientation = Orientation.Horizontal };
         _rightArea = new StackPanel { Orientation = Orientation.Horizontal };
@@ -164,8 +162,20 @@ public class NativeCustomWindow : Window
         {
             if (e.Button == MouseButton.Left && CanMaximize)
             {
-                if (WindowState == WindowState.Maximized) Restore();
-                else Maximize();
+                if (e.GetPosition(_titleBar) is Point p && (_leftArea.Bounds.Contains(p) || _rightArea.Bounds.Contains(p)))
+                {
+                    e.Handled = true;
+                    return;
+                }
+
+                if (WindowState == WindowState.Maximized)
+                {
+                    Restore();
+                }
+                else
+                {
+                    Maximize();
+                }
                 e.Handled = true;
             }
         };
@@ -179,7 +189,7 @@ public class NativeCustomWindow : Window
             Child = new DockPanel().Children(
                 _titleBar.DockTop(),
                 _contentArea
-            ),
+            )
         };
         _chromeBorder.SetBinding(Border.BorderBrushProperty, this, BorderBrushProperty);
         base.Content = _chromeBorder;
@@ -195,7 +205,6 @@ public class NativeCustomWindow : Window
         Activated += UpdateChromeAppearance;
         Deactivated += UpdateChromeAppearance;
         Loaded += OnLoaded;
-        this.WithTheme((_, _) => UpdateChromeAppearance());
     }
 
     private void OnLoaded()
@@ -206,8 +215,6 @@ public class NativeCustomWindow : Window
             _chromeBorder.BorderThickness = 1;
         }
     }
-
-
 
     /// <summary>Left area of the title bar (e.g. MenuBar).</summary>
     public StackPanel TitleBarLeft => _leftArea;
@@ -235,6 +242,13 @@ public class NativeCustomWindow : Window
         BorderBrush = accentBorder;
 
         _titleText.Foreground = IsActive ? p.WindowText : p.DisabledText;
+    }
+
+    protected override void OnThemeChanged(Theme oldTheme, Theme newTheme)
+    {
+        base.OnThemeChanged(oldTheme, newTheme);
+
+        UpdateChromeAppearance();
     }
 
     private void UpdateChromeButtonVisibility()
