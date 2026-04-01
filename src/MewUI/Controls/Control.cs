@@ -1015,6 +1015,11 @@ public abstract class Control : FrameworkElement
 
     private void HideToolTip()
     {
+        if (ToolTip == null)
+        {
+            return;
+        }
+
         var root = FindVisualRoot();
         if (root is not Window window)
         {

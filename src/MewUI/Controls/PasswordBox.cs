@@ -25,6 +25,10 @@ public sealed class PasswordBox : SingleLineTextBase
     /// <summary>
     /// Gets or sets the password text.
     /// </summary>
+    /// <remarks>
+    /// The value is stored as a plain (unencrypted) string.
+    /// Clear it manually after use (e.g., <c>passwordBox.Password = string.Empty;</c>) to minimize exposure in memory.
+    /// </remarks>
     public string Password
     {
         get => GetTextCore();
