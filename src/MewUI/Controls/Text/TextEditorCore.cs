@@ -1,7 +1,14 @@
 namespace Aprillz.MewUI.Controls.Text;
 
-internal sealed class TextEditorCore
+public sealed class TextEditorCore
 {
+    public class CaretChangedEventArgs(int newPos, int? oldPos = null) : EventArgs
+    {
+        public int? OldPosition { get; } = oldPos;
+        public int NewPosition { get; } = newPos;
+    }
+    public event EventHandler<CaretChangedEventArgs>? CaretChanged = null;
+
     private readonly Func<int> _getLength;
     private readonly Func<int, char> _getChar;
     private readonly Func<int, int, string> _getSubstring;
@@ -32,7 +39,18 @@ internal sealed class TextEditorCore
         _onEditCommitted = onEditCommitted ?? throw new ArgumentNullException(nameof(onEditCommitted));
     }
 
-    public int CaretPosition { get; private set; }
+    public int CaretPosition
+    {
+        get; private set
+        {
+            if (field != value)
+            {
+                CaretChangedEventArgs e = new(field, value);
+                field = value;
+                CaretChanged?.Invoke(this, e);
+            }
+        }
+    }
 
     public bool HasSelection => _selectionLength != 0;
 

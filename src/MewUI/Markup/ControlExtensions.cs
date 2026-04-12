@@ -1,3 +1,5 @@
+using Aprillz.MewUI.Controls.Text;
+
 namespace Aprillz.MewUI.Controls;
 
 /// <summary>
@@ -1088,6 +1090,18 @@ public static class ControlExtensions
     public static T OnTextChanged<T>(this T textBox, Action<string> handler) where T : TextBase
     {
         textBox.TextChanged += handler;
+        return textBox;
+    }
+
+    /// <summary>
+    /// Adds a caret changed event handler.
+    /// </summary>
+    /// <param name="textBox">Target text box.</param>
+    /// <param name="handler">Event handler.</param>
+    /// <returns>The text box for changing.</returns>
+    public static T OnCaretChanged<T>(this T textBox, EventHandler<TextEditorCore.CaretChangedEventArgs> handler) where T : TextBase
+    {
+        textBox.CaretChanged += handler;
         return textBox;
     }
 

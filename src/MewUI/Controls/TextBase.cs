@@ -1,6 +1,7 @@
 using Aprillz.MewUI.Controls.Text;
 using Aprillz.MewUI.Input;
 using Aprillz.MewUI.Rendering;
+using System.Diagnostics;
 
 namespace Aprillz.MewUI.Controls;
 
@@ -12,6 +13,8 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
     public event Action<TextInputEventArgs>? TextInput;
 
     public event Action<TextCompositionEventArgs>? TextCompositionStart;
+
+    public event EventHandler<TextEditorCore.CaretChangedEventArgs>? CaretChanged;
 
     public static readonly MewProperty<ImeMode> ImeModeProperty =
         MewProperty<ImeMode>.Register<TextBase>(nameof(ImeMode), ImeMode.Auto, MewPropertyOptions.None);
@@ -44,8 +47,10 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
 
     private ContextMenu? _defaultContextMenu;
 
-    private CancellationTokenSource? _caretCts;
     private bool _caretVisible = true;
+    private (CancellationTokenSource Cancel, Task Task)? _caretBlinking;
+
+    internal bool IsCaretBlinking => (_caretBlinking.HasValue && !_caretBlinking.Value.Cancel.IsCancellationRequested && !_caretBlinking.Value.Task.IsCompleted);
 
     /// <summary>
     /// Gets whether the caret is currently visible (toggles during blink).
@@ -75,6 +80,8 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
             ApplyInsertForEdit,
             ApplyRemoveForEdit,
             OnEditCommitted);
+
+        _editor.CaretChanged += OnEditorCaretChanged;
     }
 
     /// <summary>
@@ -175,6 +182,12 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
     public static readonly MewProperty<bool> AcceptReturnProperty =
         MewProperty<bool>.Register<TextBase>(nameof(AcceptReturn), false, MewPropertyOptions.None);
 
+    public static readonly MewProperty<TimeSpan> CaretBlinkIntervalProperty =
+        MewProperty<TimeSpan>.Register<TextBase>(nameof(CaretBlinkInterval), TimeSpan.FromSeconds(0.53), MewPropertyOptions.None);
+
+    public static readonly MewProperty<TimeSpan> FirstCaretBlinkIntervalProperty =
+        MewProperty<TimeSpan>.Register<TextBase>(nameof(FirstCaretBlinkInterval), TimeSpan.FromSeconds(0.63), MewPropertyOptions.None);
+
     /// <summary>
     /// Gets or sets the placeholder text shown when the control is empty.
     /// </summary>
@@ -222,14 +235,26 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
         get => _editor.CaretPosition;
         set
         {
-            int old = _editor.CaretPosition;
+            int old = this.CaretPosition;
             _editor.SetCaretPosition(value);
-            if (old != _editor.CaretPosition)
+            if (old != this.CaretPosition)
             {
-                ResetCaretBlink();
+                _ = ValidateCaretBlinkAsync(reset: true);
                 InvalidateVisual();
             }
         }
+    }
+
+    public TimeSpan FirstCaretBlinkInterval
+    {
+        get => GetValue(FirstCaretBlinkIntervalProperty);
+        set => SetValue(FirstCaretBlinkIntervalProperty, value);
+    }
+
+    public TimeSpan CaretBlinkInterval
+    {
+        get => GetValue(CaretBlinkIntervalProperty);
+        set => SetValue(CaretBlinkIntervalProperty, value);
     }
 
     bool ITextCompositionClient.IsComposing => _isTextComposing;
@@ -792,7 +817,7 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
 
         _compositionLength = text.Length;
         _compositionAttributes = e.Attributes;
-
+        
         SetCaretAndSelection(_compositionStart + _compositionLength, extendSelection: false);
         EnsureCaretVisibleCore(GetInteractionContentBounds());
         InvalidateMeasure();
@@ -813,6 +838,11 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
         InvalidateVisual();
     }
 
+    protected virtual void OnEditorCaretChanged(object? sender, TextEditorCore.CaretChangedEventArgs e)
+    {
+        CaretChanged?.Invoke(this, e);
+    }
+
     void ITextCompositionClient.HandleTextCompositionStart(TextCompositionEventArgs e)
         => OnTextCompositionStart(e);
 
@@ -828,7 +858,7 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
     protected override void OnGotFocus()
     {
         base.OnGotFocus();
-        StartCaretBlink();
+        _ = ValidateCaretBlinkAsync(reset: true);
         if (ImeMode != ImeMode.Auto)
         {
             var root = FindVisualRoot();
@@ -845,8 +875,8 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
             if (root is Window w && w.Backend != null)
                 w.Backend.SetImeMode(ImeMode.Auto);
         }
-        StopCaretBlink();
-        _caretVisible = true;
+        _ = ValidateCaretBlinkAsync();
+        _caretVisible = true; // TODO: Should the caret be hidden when not focused? Let's add a property for customization instead of hardcoding this.
         base.OnLostFocus();
         if (_isTextComposing)
         {
@@ -856,31 +886,76 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
         }
     }
 
+    /// <remarks>We shouldn't throw xxxCanceledExceptions here to avoid debugger slowdowns caused by frequent cancellations, but we must also ensure that cancellation is not requested before making any modifications.</remarks>
+    private async Task CaretBlinking(CancellationToken cancel)
+    {
+        _caretVisible = true;
+        InvalidateVisual();
+        await Task.Delay(FirstCaretBlinkInterval, CancellationToken.None);
+        while (!cancel.IsCancellationRequested)
+        {
+            if (cancel.IsCancellationRequested)
+                break;
+            _caretVisible = !_caretVisible;
+            InvalidateVisual();
+            await Task.Delay(CaretBlinkInterval, CancellationToken.None);
+        }
+    }
+
+    private (CancellationTokenSource, Task) CreateCaretBlinking()
+    {
+        var cancel = new CancellationTokenSource();
+        return (cancel, CaretBlinking(cancel.Token));
+    }
+
+    private async Task StartCaretBlinkAsync(bool reset = false)
+    {
+        if (reset)
+            //await
+            _ = StopCaretBlinkAsync(); // may be we shouldn't await the stop, to avoid a potential delay starting the new blink?
+
+        if (IsCaretBlinking)
+            return;
+
+        _caretBlinking = CreateCaretBlinking();
+    }
+
+    [Obsolete("Use StartCaretBlinkAsync instead.")]
     private async void StartCaretBlink()
     {
-        StopCaretBlink();
-        _caretVisible = true;
-        _caretCts = new CancellationTokenSource();
-        var ct = _caretCts.Token;
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
-                await Task.Delay(500, ct);
-                _caretVisible = !_caretVisible;
-                InvalidateVisual();
-            }
-        }
-        catch (OperationCanceledException) { }
+        await StartCaretBlinkAsync();
     }
 
-    private void StopCaretBlink()
+    private Task StopCaretBlinkAsync()
     {
-        _caretCts?.Cancel();
-        _caretCts?.Dispose();
-        _caretCts = null;
+        if (_caretBlinking is (var cancel, var task))
+        {
+            _caretBlinking = null;
+            if (!cancel.IsCancellationRequested)
+            {
+                cancel.Cancel();
+            }
+            return task;
+        }
+
+        return Task.CompletedTask;
     }
 
+    [Obsolete("Use StopCaretBlinkAsync instead.")]
+    private async void StopCaretBlink()
+    {
+        await StopCaretBlinkAsync();
+    }
+
+    private async Task ValidateCaretBlinkAsync(bool reset = false)
+    {
+        if (IsFocused)
+            await StartCaretBlinkAsync(reset);
+        else
+            await StopCaretBlinkAsync();
+    }
+
+    [Obsolete("Use ValidateCaretBlinkAsync instead.")]
     private void ResetCaretBlink()
     {
         if (!IsFocused) return;
@@ -1227,7 +1302,7 @@ public abstract partial class TextBase : Control, ITextCompositionClient, ITextI
     protected void SetCaretAndSelection(int newPos, bool extendSelection)
     {
         _editor.SetCaretAndSelection(newPos, extendSelection);
-        ResetCaretBlink();
+        _ = ValidateCaretBlinkAsync(reset: false);
     }
 
     protected void MoveCaretHorizontal(int direction, bool extendSelection, bool word)
