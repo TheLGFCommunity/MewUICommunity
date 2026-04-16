@@ -204,7 +204,7 @@ Button AccentSwatch(Accent accent) => new Button()
     .BorderThickness(0)
     .Content(string.Empty)
     .WithTheme((t, c) => c.Background(accent.GetAccentColor(t.IsDark)))
-    .ToolTip(accent.ToString())
+    .ToolTipText(accent.ToString())
     .OnClick(() =>
     {
         currentAccent = accent;

@@ -276,7 +276,7 @@ Button AccentSwatch(Accent accent) =>
     new Button()
         .Content(string.Empty)
         .WithTheme((t, c) => c.Background(accent.GetAccentColor(t.IsDark)))
-        .ToolTip(accent.ToString())
+        .ToolTipText(accent.ToString())
         .OnClick(() => ApplyAccent(accent))
         .Apply(b => accentSwatches.Add((accent, b)));
 
@@ -337,7 +337,7 @@ Element NormalControls()
 
                             new Button()
                                 .Content("Hover / Right-click me")
-                                .ToolTip("ToolTip: shown via Window internal popup overlay.")
+                                .ToolTipText("ToolTip: shown via Window internal popup overlay.")
                                 .ContextMenu(demoMenu)
                         )),
 

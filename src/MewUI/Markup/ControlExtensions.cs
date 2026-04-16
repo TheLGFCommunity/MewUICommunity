@@ -131,9 +131,22 @@ public static class ControlExtensions
     /// <param name="control">Target control.</param>
     /// <param name="text">Tooltip text.</param>
     /// <returns>The control for chaining.</returns>
-    public static T ToolTip<T>(this T control, string? text) where T : Control
+    public static T ToolTipText<T>(this T control, string text) where T : Control
     {
-        control.ToolTip = string.IsNullOrEmpty(text) ? null : new TextBlock { Text = text };
+        control.ToolTip = new TextBlock { Text = text };
+        return control;
+    }
+
+    /// <summary>
+    /// Sets the tooltip.
+    /// </summary>
+    /// <typeparam name="T">Control type.</typeparam>
+    /// <param name="control">Target control.</param>
+    /// <param name="element">Tooltip element.</param>
+    /// <returns>The control for chaining.</returns>
+    public static T ToolTip<T>(this T control, Element? element) where T : Control
+    {
+        control.ToolTip = element;
         return control;
     }
 

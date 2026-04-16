@@ -100,7 +100,7 @@ partial class GalleryView
 
                             new Button()
                                 .Content("Hover / Right-click me")
-                                .ToolTip("ToolTip text")
+                                .ToolTipText("ToolTip text")
                                 .ContextMenu(
                                     new ContextMenu()
                                         .Item("Copy", new KeyGesture(Key.C, ModifierKeys.Primary))
