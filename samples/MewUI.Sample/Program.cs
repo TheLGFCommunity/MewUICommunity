@@ -200,7 +200,8 @@ Element MenuDemo()
 
     var helpDocsMenu = new Menu()
         .Item("Docs", () => NativeMessageBox.Show(window.Handle, "docs/", "Help"))
-        .Item("Korean Docs", () => NativeMessageBox.Show(window.Handle, "ko/docs/", "Help"));
+        .Item("Korean Docs", () => NativeMessageBox.Show(window.Handle, "docs/ko/", "Help"))
+        .Item("Chinese Docs", () => NativeMessageBox.Show(window.Handle, "docs/cn/", "Help"));
 
     var helpMenu = new Menu()
         .SubMenu("Documentation", helpDocsMenu)
